@@ -10,7 +10,7 @@ python -m arcade.examples.tetris
 # flake8: noqa: E241
 import arcade
 import random
-import PIL
+import pathlib
 
 # Set how many rows and columns we will have
 ROW_COUNT = 24
@@ -20,24 +20,21 @@ COLUMN_COUNT = 10
 WIDTH = 30
 HEIGHT = 30
 
-# This sets the margin between each cell
-# and on the edges of the screen.
-MARGIN = 5
 
 # Do the math to figure out our screen dimensions
-SCREEN_WIDTH = (WIDTH + MARGIN) * COLUMN_COUNT + MARGIN
-SCREEN_HEIGHT = (HEIGHT + MARGIN) * ROW_COUNT + MARGIN
+SCREEN_WIDTH = WIDTH * COLUMN_COUNT
+SCREEN_HEIGHT = HEIGHT * ROW_COUNT
 SCREEN_TITLE = "Tetris"
 
-colors = [
-    (0,   0,   0, 255),
-    (255, 0,   0, 255),
-    (0,   150, 0, 255),
-    (0,   0,   255, 255),
-    (255, 120, 0, 255),
-    (255, 255, 0, 255),
-    (180, 0,   255, 255),
-    (0,   220, 220, 255)
+colored_brick_files = [
+    'transparent.png',
+    'red.png',
+    'green.png',
+    'blue.png',
+    'orange.png',
+    'yellow.png',
+    'purple.png',
+    'cyan.png'
 ]
 
 # Define the shapes of the single parts
@@ -64,13 +61,17 @@ tetris_shapes = [
 ]
 
 
+def resource_path(fname):
+    """Helper to load resources (images, sounds) from this files directory"""
+    this_dir = pathlib.Path(__file__).parent.resolve()
+    return this_dir / 'data' / fname
+
+
 def create_textures():
     """ Create a list of images for sprites based on the global colors. """
     new_textures = []
-    for color in colors:
-        # noinspection PyUnresolvedReferences
-        image = PIL.Image.new('RGBA', (WIDTH, HEIGHT), color)
-        new_textures.append(arcade.Texture(str(color), image=image))
+    for brick_file in colored_brick_files:
+        new_textures.append(arcade.load_texture(resource_path(brick_file)))
     return new_textures
 
 
@@ -162,9 +163,9 @@ class MyGame(arcade.Window):
                 for texture in texture_list:
                     sprite.append_texture(texture)
                 sprite.set_texture(0)
-                sprite.center_x = (MARGIN + WIDTH) * column + MARGIN + WIDTH // 2
-                sprite.center_y = SCREEN_HEIGHT - (MARGIN + HEIGHT) * row + MARGIN + HEIGHT // 2
-
+                sprite.scale = float(WIDTH) / float(sprite.width)
+                sprite.center_x = WIDTH * column + WIDTH // 2
+                sprite.center_y = SCREEN_HEIGHT - HEIGHT * row + HEIGHT // 2
                 self.board_sprite_list.append(sprite)
 
         self.new_stone()
@@ -248,13 +249,17 @@ class MyGame(arcade.Window):
             for column in range(len(grid[0])):
                 # Figure out what color to draw the box
                 if grid[row][column]:
-                    color = colors[grid[row][column]]
                     # Do the math to figure out where the box is
-                    x = (MARGIN + WIDTH) * (column + offset_x) + MARGIN + WIDTH // 2
-                    y = SCREEN_HEIGHT - (MARGIN + HEIGHT) * (row + offset_y) + MARGIN + HEIGHT // 2
+                    x = WIDTH * (column + offset_x) +  WIDTH // 2
+                    y = SCREEN_HEIGHT - HEIGHT * (row + offset_y) + HEIGHT // 2
 
                     # Draw the box
-                    arcade.draw_rectangle_filled(x, y, WIDTH, HEIGHT, color)
+                    texture = texture_list[self.grid[row][column]]
+                    sprite = arcade.Sprite(texture=texture)
+                    sprite.scale = float(WIDTH) / float(sprite.width)
+                    sprite.center_x = x
+                    sprite.center_y = y
+                    sprite.draw()
 
     def update_board(self):
         """
