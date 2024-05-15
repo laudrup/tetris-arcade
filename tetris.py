@@ -20,6 +20,8 @@ COLUMN_COUNT = 10
 WIDTH = 30
 HEIGHT = 30
 
+# Amount of frames between dropping stone down one row
+SPEED = 10
 
 # Do the math to figure out our screen dimensions
 SCREEN_WIDTH = WIDTH * COLUMN_COUNT
@@ -207,7 +209,7 @@ class MyGame(arcade.Window):
     def on_update(self, dt):
         """ Update, drop stone if warrented """
         self.frame_count += 1
-        if self.frame_count % 10 == 0:
+        if self.frame_count % SPEED == 0:
             self.drop()
 
     def move(self, delta_x):
