@@ -28,6 +28,9 @@ SCREEN_WIDTH = WIDTH * COLUMN_COUNT
 SCREEN_HEIGHT = HEIGHT * ROW_COUNT
 SCREEN_TITLE = "Tetris"
 
+# Amount of frames between moving on key hold
+KEY_REPEAT_SPEED = 7
+
 colored_brick_files = [
     'transparent.png',
     'red.png',
@@ -143,6 +146,7 @@ class MyGame(arcade.Window):
         self.stone_x = 0
         self.stone_y = 0
 
+        self.keys_pressed = {}
     def new_stone(self):
         """
         Randomly grab a new stone and set the stone location to the top.
@@ -207,8 +211,13 @@ class MyGame(arcade.Window):
                 self.stone = new_stone
 
     def on_update(self, dt):
-        """ Update, drop stone if warrented """
         self.frame_count += 1
+        if (arcade.key.LEFT, self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
+            self.move(-1)
+        if (arcade.key.RIGHT, self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
+            self.move(1)
+        if (arcade.key.DOWN, self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
+            self.drop()
         if self.frame_count % SPEED == 0:
             self.drop()
 
@@ -224,21 +233,20 @@ class MyGame(arcade.Window):
                 self.stone_x = new_x
 
     def on_key_press(self, key, modifiers):
-        """
-        Handle user key presses
-        User goes left, move -1
-        User goes right, move 1
-        Rotate stone,
-        or drop down
-        """
-        if key == arcade.key.LEFT:
+        if key == arcade.key.UP:
+            self.rotate_stone()
+            return
+        elif key == arcade.key.LEFT:
             self.move(-1)
         elif key == arcade.key.RIGHT:
             self.move(1)
-        elif key == arcade.key.UP:
-            self.rotate_stone()
         elif key == arcade.key.DOWN:
             self.drop()
+        self.keys_pressed[key] = self.frame_count % KEY_REPEAT_SPEED
+
+    def on_key_release(self, key, modifiers):
+        if key in self.keys_pressed:
+            del self.keys_pressed[key]
 
     # noinspection PyMethodMayBeStatic
     def draw_grid(self, grid, offset_x, offset_y):
