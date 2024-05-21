@@ -132,7 +132,9 @@ class MyGame(arcade.Window):
     def __init__(self, width, height, title):
         """ Set up the application. """
 
-        super().__init__(width, height, title)
+        super().__init__(width, height, title, resizable=True)
+        width, height = self.get_size()
+        self.set_viewport(0, width, 0, height)
 
         arcade.set_background_color(arcade.color.WHITE)
 
@@ -147,6 +149,19 @@ class MyGame(arcade.Window):
         self.stone_y = 0
 
         self.keys_pressed = {}
+
+    def on_resize(self, width, height):
+        super().on_resize(width, height)
+        width_ratio = width / SCREEN_WIDTH
+        height_ratio = height / SCREEN_HEIGHT
+        if height_ratio < width_ratio:
+            new_width = width / height_ratio
+            padding = (new_width - SCREEN_WIDTH) / 2
+            self.set_viewport(-padding, new_width - padding, 0, SCREEN_HEIGHT)
+        else:
+            self.set_viewport(0, SCREEN_WIDTH, 0, height / width_ratio)
+
+
     def new_stone(self):
         """
         Randomly grab a new stone and set the stone location to the top.
