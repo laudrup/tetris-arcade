@@ -89,25 +89,6 @@ def rotate_counterclockwise(shape):
             for x in range(len(shape[0]) - 1, -1, -1)]
 
 
-def check_collision(board, shape, offset):
-    """
-    See if the matrix stored in the shape will intersect anything
-    on the board based on the offset. Offset is an (x, y) coordinate.
-    """
-    off_x, off_y = offset
-    for cy, row in enumerate(shape):
-        for cx, cell in enumerate(row):
-            if cell and board[cy + off_y][cx + off_x]:
-                return True
-    return False
-
-
-def remove_row(board, row):
-    """ Remove a row from the board, add a blank row on top. """
-    del board[row]
-    return [[0 for _ in range(COLUMN_COUNT)]] + board
-
-
 def join_matrixes(matrix_1, matrix_2, matrix_2_offset):
     """ Copy matrix 2 onto matrix 1 based on the passed in x, y offset coordinate """
     offset_x, offset_y = matrix_2_offset
@@ -117,13 +98,60 @@ def join_matrixes(matrix_1, matrix_2, matrix_2_offset):
     return matrix_1
 
 
-def new_board():
-    """ Create a grid of 0's. Add 1's to the bottom for easier collision detection. """
-    # Create the main board of 0's
-    board = [[0 for _x in range(COLUMN_COUNT)] for _y in range(ROW_COUNT)]
-    # Add a bottom border of 1's
-    board += [[1 for _x in range(COLUMN_COUNT)]]
-    return board
+class Board():
+    def __init__(self):
+        self.__grid = [[0 for _x in range(COLUMN_COUNT)] for _y in range(ROW_COUNT)]
+        self.__grid += [[1 for _x in range(COLUMN_COUNT)]]
+        self.__sprite_list = self.__setup_sprites()
+
+    def __setup_sprites(self):
+        sprite_list = arcade.SpriteList()
+        for row in range(len(self.__grid)):
+            for column in range(len(self.__grid[0])):
+                sprite = arcade.Sprite()
+                for texture in texture_list:
+                    sprite.append_texture(texture)
+                sprite.set_texture(0)
+                sprite.scale = float(WIDTH) / float(sprite.width)
+                sprite.center_x = WIDTH * column + WIDTH // 2
+                sprite.center_y = SCREEN_HEIGHT - HEIGHT * row + HEIGHT // 2
+                sprite_list.append(sprite)
+        return sprite_list
+
+    def remove_rows(self):
+        while True:
+            for i, row in enumerate(self.__grid[:-1]):
+                if 0 not in row:
+                    del self.__grid[i]
+                    self.__grid.insert(0, [0 for _ in range(COLUMN_COUNT)])
+                    break
+            else:
+                break
+
+    def check_collision(self, shape, offset):
+        """
+        See if the matrix stored in the shape will intersect anything
+        on the board based on the offset. Offset is an (x, y) coordinate.
+        """
+        off_x, off_y = offset
+        for cy, row in enumerate(shape):
+            for cx, cell in enumerate(row):
+                if cell and self.__grid[cy + off_y][cx + off_x]:
+                    return True
+        return False
+
+    def add_stone(self, stone, stone_x, stone_y):
+        self.__grid = join_matrixes(self.__grid, stone, (stone_x, stone_y))
+
+    def update(self):
+        for row in range(len(self.__grid)):
+            for column in range(len(self.__grid[0])):
+                v = self.__grid[row][column]
+                i = row * COLUMN_COUNT + column
+                self.__sprite_list[i].set_texture(v)
+
+    def draw(self):
+        self.__sprite_list.draw()
 
 
 class MyGame(arcade.Window):
@@ -142,7 +170,6 @@ class MyGame(arcade.Window):
         self.frame_count = 0
         self.game_over = False
         self.paused = False
-        self.board_sprite_list = None
 
         self.stone = None
         self.stone_x = 0
@@ -161,7 +188,6 @@ class MyGame(arcade.Window):
         else:
             self.set_viewport(0, SCREEN_WIDTH, 0, height / width_ratio)
 
-
     def new_stone(self):
         """
         Randomly grab a new stone and set the stone location to the top.
@@ -171,26 +197,13 @@ class MyGame(arcade.Window):
         self.stone_x = int(COLUMN_COUNT / 2 - len(self.stone[0]) / 2)
         self.stone_y = 0
 
-        if check_collision(self.board, self.stone, (self.stone_x, self.stone_y)):
+        if self.board.check_collision(self.stone, (self.stone_x, self.stone_y)):
             self.game_over = True
 
     def setup(self):
-        self.board = new_board()
-
-        self.board_sprite_list = arcade.SpriteList()
-        for row in range(len(self.board)):
-            for column in range(len(self.board[0])):
-                sprite = arcade.Sprite()
-                for texture in texture_list:
-                    sprite.append_texture(texture)
-                sprite.set_texture(0)
-                sprite.scale = float(WIDTH) / float(sprite.width)
-                sprite.center_x = WIDTH * column + WIDTH // 2
-                sprite.center_y = SCREEN_HEIGHT - HEIGHT * row + HEIGHT // 2
-                self.board_sprite_list.append(sprite)
-
+        self.board = Board()
         self.new_stone()
-        self.update_board()
+        self.board.update()
 
     def drop(self):
         """
@@ -204,16 +217,10 @@ class MyGame(arcade.Window):
         """
         if not self.game_over and not self.paused:
             self.stone_y += 1
-            if check_collision(self.board, self.stone, (self.stone_x, self.stone_y)):
-                self.board = join_matrixes(self.board, self.stone, (self.stone_x, self.stone_y))
-                while True:
-                    for i, row in enumerate(self.board[:-1]):
-                        if 0 not in row:
-                            self.board = remove_row(self.board, i)
-                            break
-                    else:
-                        break
-                self.update_board()
+            if self.board.check_collision(self.stone, (self.stone_x, self.stone_y)):
+                self.board.add_stone(self.stone, self.stone_x, self.stone_y)
+                self.board.remove_rows()
+                self.board.update()
                 self.new_stone()
 
     def rotate_stone(self):
@@ -222,7 +229,7 @@ class MyGame(arcade.Window):
             new_stone = rotate_counterclockwise(self.stone)
             if self.stone_x + len(new_stone[0]) >= COLUMN_COUNT:
                 self.stone_x = COLUMN_COUNT - len(new_stone[0])
-            if not check_collision(self.board, new_stone, (self.stone_x, self.stone_y)):
+            if not self.board.check_collision(new_stone, (self.stone_x, self.stone_y)):
                 self.stone = new_stone
 
     def on_update(self, dt):
@@ -244,7 +251,7 @@ class MyGame(arcade.Window):
                 new_x = 0
             if new_x > COLUMN_COUNT - len(self.stone[0]):
                 new_x = COLUMN_COUNT - len(self.stone[0])
-            if not check_collision(self.board, self.stone, (new_x, self.stone_y)):
+            if not self.board.check_collision(self.stone, (new_x, self.stone_y)):
                 self.stone_x = new_x
 
     def on_key_press(self, key, modifiers):
@@ -286,22 +293,12 @@ class MyGame(arcade.Window):
                     sprite.center_y = y
                     sprite.draw()
 
-    def update_board(self):
-        """
-        Update the sprite list to reflect the contents of the 2d grid
-        """
-        for row in range(len(self.board)):
-            for column in range(len(self.board[0])):
-                v = self.board[row][column]
-                i = row * COLUMN_COUNT + column
-                self.board_sprite_list[i].set_texture(v)
-
     def on_draw(self):
         """ Render the screen. """
 
         # This command has to happen before we start drawing
         self.clear()
-        self.board_sprite_list.draw()
+        self.board.draw()
         self.draw_grid(self.stone, self.stone_x, self.stone_y)
 
 
