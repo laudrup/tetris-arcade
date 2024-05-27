@@ -39,7 +39,8 @@ colored_brick_files = [
     'orange.png',
     'yellow.png',
     'purple.png',
-    'cyan.png'
+    'cyan.png',
+    'explosion.png'
 ]
 
 # Define the shapes of the single parts
@@ -103,6 +104,7 @@ class Board():
         self.__grid = [[0 for _x in range(COLUMN_COUNT)] for _y in range(ROW_COUNT)]
         self.__grid += [[1 for _x in range(COLUMN_COUNT)]]
         self.__sprite_list = self.__setup_sprites()
+        self.__rows_to_remove = []
 
     def __setup_sprites(self):
         sprite_list = arcade.SpriteList()
@@ -119,14 +121,9 @@ class Board():
         return sprite_list
 
     def remove_rows(self):
-        while True:
-            for i, row in enumerate(self.__grid[:-1]):
-                if 0 not in row:
-                    del self.__grid[i]
-                    self.__grid.insert(0, [0 for _ in range(COLUMN_COUNT)])
-                    break
-            else:
-                break
+        for i, row in enumerate(self.__grid[:-1]):
+            if 0 not in row:
+                self.__rows_to_remove.append(i)
 
     def check_collision(self, shape, offset):
         """
@@ -149,6 +146,23 @@ class Board():
                 v = self.__grid[row][column]
                 i = row * COLUMN_COUNT + column
                 self.__sprite_list[i].set_texture(v)
+
+        for i, row in enumerate(self.__rows_to_remove):
+            if all(x == 0 for x in self.__grid[row]):
+                del self.__grid[row]
+                self.__grid.insert(0, [0 for _ in range(COLUMN_COUNT)])
+                del self.__rows_to_remove[i]
+                return False
+            for column in range(len(self.__grid[row])):
+                if self.__grid[row][column] == 8:
+                    self.__grid[row][column] = 0
+                elif self.__grid[row][column] != 0:
+                    self.__grid[row][column] = 8
+                else:
+                    continue
+                return False
+
+        return len(self.__rows_to_remove) == 0
 
     def draw(self):
         self.__sprite_list.draw()
@@ -203,25 +217,14 @@ class MyGame(arcade.Window):
     def setup(self):
         self.board = Board()
         self.new_stone()
-        self.board.update()
 
     def drop(self):
-        """
-        Drop the stone down one place.
-        Check for collision.
-        If collided, then
-          join matrixes
-          Check for rows we can remove
-          Update sprite list with stones
-          Create a new stone
-        """
-        if not self.game_over and not self.paused:
+        if not self.game_over and not self.paused and self.stone:
             self.stone_y += 1
             if self.board.check_collision(self.stone, (self.stone_x, self.stone_y)):
                 self.board.add_stone(self.stone, self.stone_x, self.stone_y)
+                self.stone = None
                 self.board.remove_rows()
-                self.board.update()
-                self.new_stone()
 
     def rotate_stone(self):
         """ Rotate the stone, check collision. """
@@ -242,10 +245,12 @@ class MyGame(arcade.Window):
             self.drop()
         if self.frame_count % SPEED == 0:
             self.drop()
+        if self.board.update() and not self.stone:
+            self.new_stone()
 
     def move(self, delta_x):
         """ Move the stone back and forth based on delta x. """
-        if not self.game_over and not self.paused:
+        if not self.game_over and not self.paused and self.stone:
             new_x = self.stone_x + delta_x
             if new_x < 0:
                 new_x = 0
@@ -299,7 +304,8 @@ class MyGame(arcade.Window):
         # This command has to happen before we start drawing
         self.clear()
         self.board.draw()
-        self.draw_grid(self.stone, self.stone_x, self.stone_y)
+        if self.stone:
+            self.draw_grid(self.stone, self.stone_x, self.stone_y)
 
 
 def main():
