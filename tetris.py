@@ -105,6 +105,8 @@ class Board():
         self.__grid += [[1 for _x in range(COLUMN_COUNT)]]
         self.__sprite_list = self.__setup_sprites()
         self.__rows_to_remove = []
+        self.__explosion = arcade.Sound(':resources:sounds/explosion2.wav')
+        self.__hit = arcade.Sound(':resources:sounds/hit5.wav')
 
     def __setup_sprites(self):
         sprite_list = arcade.SpriteList()
@@ -134,6 +136,7 @@ class Board():
         for cy, row in enumerate(shape):
             for cx, cell in enumerate(row):
                 if cell and self.__grid[cy + off_y][cx + off_x]:
+                    self.__hit.play()
                     return True
         return False
 
@@ -157,6 +160,7 @@ class Board():
                 if self.__grid[row][column] == 8:
                     self.__grid[row][column] = 0
                 elif self.__grid[row][column] != 0:
+                    self.__explosion.play()
                     self.__grid[row][column] = 8
                 else:
                     continue
