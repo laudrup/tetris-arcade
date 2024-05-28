@@ -85,7 +85,6 @@ texture_list = create_textures()
 
 
 def rotate_counterclockwise(shape):
-    """ Rotates a matrix clockwise """
     return [[shape[y][x] for y in range(len(shape))]
             for x in range(len(shape[0]) - 1, -1, -1)]
 
@@ -97,6 +96,27 @@ def join_matrixes(matrix_1, matrix_2, matrix_2_offset):
         for cx, val in enumerate(row):
             matrix_1[cy + offset_y - 1][cx + offset_x] += val
     return matrix_1
+
+
+class Tetromino():
+    def __init__(self, shape=None, x=0, y=0):
+        self.grid = shape if shape else random.choice(tetris_shapes)
+        self.x = x
+        self.y = y
+        self.width = len(self.grid[0])
+
+    def draw(self):
+        for row in range(len(self.grid)):
+            for column in range(self.width):
+                if self.grid[row][column]:
+                    x = WIDTH * (column + self.x) + WIDTH // 2
+                    y = SCREEN_HEIGHT - HEIGHT * (row + self.y) + HEIGHT // 2
+                    texture = texture_list[self.grid[row][column]]
+                    sprite = arcade.Sprite(texture=texture)
+                    sprite.scale = float(WIDTH) / float(sprite.width)
+                    sprite.center_x = x
+                    sprite.center_y = y
+                    sprite.draw()
 
 
 class Board():
@@ -127,21 +147,17 @@ class Board():
             if 0 not in row:
                 self.__rows_to_remove.append(i)
 
-    def check_collision(self, shape, offset):
-        """
-        See if the matrix stored in the shape will intersect anything
-        on the board based on the offset. Offset is an (x, y) coordinate.
-        """
-        off_x, off_y = offset
-        for cy, row in enumerate(shape):
+    def check_collision(self, stone, x=None):
+        x = x if x is not None else stone.x
+        for cy, row in enumerate(stone.grid):
             for cx, cell in enumerate(row):
-                if cell and self.__grid[cy + off_y][cx + off_x]:
+                if cell and self.__grid[cy + stone.y][cx + x]:
                     self.__hit.play()
                     return True
         return False
 
-    def add_stone(self, stone, stone_x, stone_y):
-        self.__grid = join_matrixes(self.__grid, stone, (stone_x, stone_y))
+    def add_stone(self, stone):
+        self.__grid = join_matrixes(self.__grid, stone.grid, (stone.x, stone.y))
 
     def update(self):
         for row in range(len(self.__grid)):
@@ -188,11 +204,7 @@ class MyGame(arcade.Window):
         self.frame_count = 0
         self.game_over = False
         self.paused = False
-
         self.stone = None
-        self.stone_x = 0
-        self.stone_y = 0
-
         self.keys_pressed = {}
 
     def on_resize(self, width, height):
@@ -207,15 +219,10 @@ class MyGame(arcade.Window):
             self.set_viewport(0, SCREEN_WIDTH, 0, height / width_ratio)
 
     def new_stone(self):
-        """
-        Randomly grab a new stone and set the stone location to the top.
-        If we immediately collide, then game-over.
-        """
-        self.stone = random.choice(tetris_shapes)
-        self.stone_x = int(COLUMN_COUNT / 2 - len(self.stone[0]) / 2)
-        self.stone_y = 0
+        self.stone = Tetromino()
+        self.stone.x = int(COLUMN_COUNT / 2 - self.stone.width / 2)
 
-        if self.board.check_collision(self.stone, (self.stone_x, self.stone_y)):
+        if self.board.check_collision(self.stone):
             self.game_over = True
 
     def setup(self):
@@ -223,20 +230,20 @@ class MyGame(arcade.Window):
         self.new_stone()
 
     def drop(self):
-        if not self.game_over and not self.paused and self.stone:
-            self.stone_y += 1
-            if self.board.check_collision(self.stone, (self.stone_x, self.stone_y)):
-                self.board.add_stone(self.stone, self.stone_x, self.stone_y)
+        if self.stone and not self.game_over and not self.paused:
+            self.stone.y += 1
+            if self.board.check_collision(self.stone):
+                self.board.add_stone(self.stone)
                 self.stone = None
                 self.board.remove_rows()
 
     def rotate_stone(self):
         """ Rotate the stone, check collision. """
-        if not self.game_over and not self.paused:
-            new_stone = rotate_counterclockwise(self.stone)
-            if self.stone_x + len(new_stone[0]) >= COLUMN_COUNT:
-                self.stone_x = COLUMN_COUNT - len(new_stone[0])
-            if not self.board.check_collision(new_stone, (self.stone_x, self.stone_y)):
+        if self.stone and not self.game_over and not self.paused:
+            new_stone = Tetromino(rotate_counterclockwise(self.stone.grid), x=self.stone.x, y=self.stone.y)
+            if new_stone.x + new_stone.width >= COLUMN_COUNT:
+                new_stone.x = COLUMN_COUNT - new_stone.width
+            if not self.board.check_collision(new_stone):
                 self.stone = new_stone
 
     def on_update(self, dt):
@@ -255,13 +262,13 @@ class MyGame(arcade.Window):
     def move(self, delta_x):
         """ Move the stone back and forth based on delta x. """
         if not self.game_over and not self.paused and self.stone:
-            new_x = self.stone_x + delta_x
+            new_x = self.stone.x + delta_x
             if new_x < 0:
                 new_x = 0
-            if new_x > COLUMN_COUNT - len(self.stone[0]):
-                new_x = COLUMN_COUNT - len(self.stone[0])
-            if not self.board.check_collision(self.stone, (new_x, self.stone_y)):
-                self.stone_x = new_x
+            if new_x > COLUMN_COUNT - self.stone.width:
+                new_x = COLUMN_COUNT - self.stone.width
+            if not self.board.check_collision(self.stone, x=new_x):
+                self.stone.x = new_x
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.UP:
@@ -279,29 +286,6 @@ class MyGame(arcade.Window):
         if key in self.keys_pressed:
             del self.keys_pressed[key]
 
-    # noinspection PyMethodMayBeStatic
-    def draw_grid(self, grid, offset_x, offset_y):
-        """
-        Draw the grid. Used to draw the falling stones. The board is drawn
-        by the sprite list.
-        """
-        # Draw the grid
-        for row in range(len(grid)):
-            for column in range(len(grid[0])):
-                # Figure out what color to draw the box
-                if grid[row][column]:
-                    # Do the math to figure out where the box is
-                    x = WIDTH * (column + offset_x) +  WIDTH // 2
-                    y = SCREEN_HEIGHT - HEIGHT * (row + offset_y) + HEIGHT // 2
-
-                    # Draw the box
-                    texture = texture_list[self.grid[row][column]]
-                    sprite = arcade.Sprite(texture=texture)
-                    sprite.scale = float(WIDTH) / float(sprite.width)
-                    sprite.center_x = x
-                    sprite.center_y = y
-                    sprite.draw()
-
     def on_draw(self):
         """ Render the screen. """
 
@@ -309,7 +293,7 @@ class MyGame(arcade.Window):
         self.clear()
         self.board.draw()
         if self.stone:
-            self.draw_grid(self.stone, self.stone_x, self.stone_y)
+            self.stone.draw()
 
 
 def main():
