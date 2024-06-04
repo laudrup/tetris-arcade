@@ -7,7 +7,6 @@ https://gist.github.com/silvasur/565419/d9de6a84e7da000797ac681976442073045c74a4
 If Python and Arcade are installed, this example can be run from the command line with:
 python -m arcade.examples.tetris
 """
-# flake8: noqa: E241
 import arcade
 import random
 import pathlib
