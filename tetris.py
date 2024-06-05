@@ -187,35 +187,13 @@ class Board():
         self.__sprite_list.draw()
 
 
-class MyGame(arcade.Window):
-    """ Main application class. """
-
-    def __init__(self, width, height, title):
-        """ Set up the application. """
-
-        super().__init__(width, height, title, resizable=True)
-        width, height = self.get_size()
-        self.set_viewport(0, width, 0, height)
-
-        arcade.set_background_color(arcade.color.WHITE)
-
+class GameView():
+    def __init__(self):
         self.board = None
         self.frame_count = 0
         self.game_over = False
-        self.paused = False
         self.stone = None
         self.keys_pressed = {}
-
-    def on_resize(self, width, height):
-        super().on_resize(width, height)
-        width_ratio = width / SCREEN_WIDTH
-        height_ratio = height / SCREEN_HEIGHT
-        if height_ratio < width_ratio:
-            new_width = width / height_ratio
-            padding = (new_width - SCREEN_WIDTH) / 2
-            self.set_viewport(-padding, new_width - padding, 0, SCREEN_HEIGHT)
-        else:
-            self.set_viewport(0, SCREEN_WIDTH, 0, height / width_ratio)
 
     def new_stone(self):
         self.stone = Tetromino()
@@ -229,23 +207,24 @@ class MyGame(arcade.Window):
         self.new_stone()
 
     def drop(self):
-        if self.stone and not self.game_over and not self.paused:
-            self.stone.y += 1
-            if self.board.check_collision(self.stone):
-                self.board.add_stone(self.stone)
-                self.stone = None
-                self.board.remove_rows()
+        if not self.stone:
+            return
+        self.stone.y += 1
+        if self.board.check_collision(self.stone):
+            self.board.add_stone(self.stone)
+            self.stone = None
+            self.board.remove_rows()
 
     def rotate_stone(self):
-        """ Rotate the stone, check collision. """
-        if self.stone and not self.game_over and not self.paused:
-            new_stone = Tetromino(rotate_counterclockwise(self.stone.grid), x=self.stone.x, y=self.stone.y)
-            if new_stone.x + new_stone.width >= COLUMN_COUNT:
-                new_stone.x = COLUMN_COUNT - new_stone.width
-            if not self.board.check_collision(new_stone):
-                self.stone = new_stone
+        if not self.stone:
+            return
+        new_stone = Tetromino(rotate_counterclockwise(self.stone.grid), x=self.stone.x, y=self.stone.y)
+        if new_stone.x + new_stone.width >= COLUMN_COUNT:
+            new_stone.x = COLUMN_COUNT - new_stone.width
+        if not self.board.check_collision(new_stone):
+            self.stone = new_stone
 
-    def on_update(self, dt):
+    def update(self):
         self.frame_count += 1
         if (arcade.key.LEFT, self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
             self.move(-1)
@@ -259,17 +238,17 @@ class MyGame(arcade.Window):
             self.new_stone()
 
     def move(self, delta_x):
-        """ Move the stone back and forth based on delta x. """
-        if not self.game_over and not self.paused and self.stone:
-            new_x = self.stone.x + delta_x
-            if new_x < 0:
-                new_x = 0
-            if new_x > COLUMN_COUNT - self.stone.width:
-                new_x = COLUMN_COUNT - self.stone.width
-            if not self.board.check_collision(self.stone, x=new_x):
-                self.stone.x = new_x
+        if not self.stone:
+            return
+        new_x = self.stone.x + delta_x
+        if new_x < 0:
+            new_x = 0
+        if new_x > COLUMN_COUNT - self.stone.width:
+            new_x = COLUMN_COUNT - self.stone.width
+        if not self.board.check_collision(self.stone, x=new_x):
+            self.stone.x = new_x
 
-    def on_key_press(self, key, modifiers):
+    def key_press(self, key):
         if key == arcade.key.UP:
             self.rotate_stone()
             return
@@ -281,24 +260,58 @@ class MyGame(arcade.Window):
             self.drop()
         self.keys_pressed[key] = self.frame_count % KEY_REPEAT_SPEED
 
-    def on_key_release(self, key, modifiers):
+    def key_release(self, key):
         if key in self.keys_pressed:
             del self.keys_pressed[key]
 
-    def on_draw(self):
-        """ Render the screen. """
-
-        # This command has to happen before we start drawing
-        self.clear()
+    def draw(self):
         self.board.draw()
         if self.stone:
             self.stone.draw()
 
 
+class MainWindow(arcade.Window):
+    def __init__(self, width, height, title):
+        super().__init__(width, height, title, resizable=True)
+        width, height = self.get_size()
+        self.set_viewport(0, width, 0, height)
+        arcade.set_background_color(arcade.color.WHITE)
+        self.game_view = GameView()
+
+    def on_resize(self, width, height):
+        super().on_resize(width, height)
+        width_ratio = width / SCREEN_WIDTH
+        height_ratio = height / SCREEN_HEIGHT
+        if height_ratio < width_ratio:
+            new_width = width / height_ratio
+            padding = (new_width - SCREEN_WIDTH) / 2
+            self.set_viewport(-padding, new_width - padding, 0, SCREEN_HEIGHT)
+        else:
+            self.set_viewport(0, SCREEN_WIDTH, 0, height / width_ratio)
+
+    def setup(self):
+        self.game_view.setup()
+
+    def on_update(self, dt):
+        if not self.game_view.game_over:
+            self.game_view.update()
+
+    def on_key_press(self, key, modifiers):
+        if not self.game_view.game_over:
+            self.game_view.key_press(key)
+
+    def on_key_release(self, key, modifiers):
+        if not self.game_view.game_over:
+            self.game_view.key_release(key)
+
+    def on_draw(self):
+        self.clear()
+        self.game_view.draw()
+
+
 def main():
-    """ Create the game window, setup, run """
-    my_game = MyGame(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
-    my_game.setup()
+    window = MainWindow(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+    window.setup()
     arcade.run()
 
 
