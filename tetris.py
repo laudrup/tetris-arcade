@@ -194,12 +194,14 @@ class GameView():
         self.game_over = False
         self.stone = None
         self.keys_pressed = {}
+        self.__game_over_sound = arcade.Sound(':resources:sounds/gameover1.wav')
 
     def new_stone(self):
         self.stone = Tetromino()
         self.stone.x = int(COLUMN_COUNT / 2 - self.stone.width / 2)
 
         if self.board.check_collision(self.stone):
+            self.__game_over_sound.play()
             self.game_over = True
 
     def setup(self):
@@ -304,9 +306,23 @@ class MainWindow(arcade.Window):
         if not self.game_view.game_over:
             self.game_view.key_release(key)
 
+    def draw_game_over(self):
+        start_x = 0
+        start_y = SCREEN_HEIGHT / 2
+        arcade.draw_text("GAME OVER",
+                         start_x,
+                         start_y,
+                         arcade.color.BARBIE_PINK,
+                         40,
+                         width=SCREEN_WIDTH,
+                         align="center",
+                         bold=True)
+
     def on_draw(self):
         self.clear()
         self.game_view.draw()
+        if self.game_view.game_over:
+            self.draw_game_over()
 
 
 def main():
