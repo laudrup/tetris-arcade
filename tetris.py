@@ -120,6 +120,7 @@ class Tetromino():
 
 class Board():
     def __init__(self):
+        self.points_earned = 0
         self.__grid = [[0 for _x in range(COLUMN_COUNT)] for _y in range(ROW_COUNT)]
         self.__grid += [[1 for _x in range(COLUMN_COUNT)]]
         self.__sprite_list = self.__setup_sprites()
@@ -145,6 +146,16 @@ class Board():
         for i, row in enumerate(self.__grid[:-1]):
             if 0 not in row:
                 self.__rows_to_remove.append(i)
+        if len(self.__rows_to_remove) == 1:
+            self.points_earned = 20
+        elif len(self.__rows_to_remove) == 2:
+            self.points_earned = 50
+        elif len(self.__rows_to_remove) == 3:
+            self.points_earned = 120
+        elif len(self.__rows_to_remove) == 4:
+            self.points_earned = 300
+        else:
+            self.points_earned = 0
 
     def check_collision(self, stone, x=None):
         x = x if x is not None else stone.x
@@ -187,14 +198,17 @@ class Board():
         self.__sprite_list.draw()
 
 
-class GameView():
+class GameView(arcade.View):
     def __init__(self):
-        self.board = None
+        super().__init__()
+        self.board = Board()
         self.frame_count = 0
         self.game_over = False
         self.stone = None
         self.keys_pressed = {}
+        self.points = 0
         self.__game_over_sound = arcade.Sound(':resources:sounds/gameover1.wav')
+        self.new_stone()
 
     def new_stone(self):
         self.stone = Tetromino()
@@ -204,9 +218,17 @@ class GameView():
             self.__game_over_sound.play()
             self.game_over = True
 
-    def setup(self):
-        self.board = Board()
-        self.new_stone()
+    def draw_game_over(self):
+        start_x = 0
+        start_y = SCREEN_HEIGHT / 2
+        arcade.draw_text("GAME OVER",
+                         start_x,
+                         start_y,
+                         arcade.color.BARBIE_PINK,
+                         40,
+                         width=SCREEN_WIDTH,
+                         align="center",
+                         bold=True)
 
     def drop(self):
         if not self.stone:
@@ -226,7 +248,9 @@ class GameView():
         if not self.board.check_collision(new_stone):
             self.stone = new_stone
 
-    def update(self):
+    def update(self, dt):
+        if self.game_over:
+            return
         self.frame_count += 1
         if (arcade.key.LEFT, self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
             self.move(-1)
@@ -250,7 +274,9 @@ class GameView():
         if not self.board.check_collision(self.stone, x=new_x):
             self.stone.x = new_x
 
-    def key_press(self, key):
+    def on_key_press(self, key, modifiers):
+        if self.game_over:
+            return
         if key == arcade.key.UP:
             self.rotate_stone()
             return
@@ -262,14 +288,17 @@ class GameView():
             self.drop()
         self.keys_pressed[key] = self.frame_count % KEY_REPEAT_SPEED
 
-    def key_release(self, key):
+    def on_key_release(self, key, modifiers):
         if key in self.keys_pressed:
             del self.keys_pressed[key]
 
-    def draw(self):
+    def on_draw(self):
+        self.clear()
         self.board.draw()
         if self.stone:
             self.stone.draw()
+        if self.game_over:
+            self.draw_game_over()
 
 
 class MainWindow(arcade.Window):
@@ -279,6 +308,7 @@ class MainWindow(arcade.Window):
         self.set_viewport(0, width, 0, height)
         arcade.set_background_color(arcade.color.WHITE)
         self.game_view = GameView()
+        self.show_view(self.game_view)
 
     def on_resize(self, width, height):
         super().on_resize(width, height)
@@ -291,44 +321,10 @@ class MainWindow(arcade.Window):
         else:
             self.set_viewport(0, SCREEN_WIDTH, 0, height / width_ratio)
 
-    def setup(self):
-        self.game_view.setup()
-
-    def on_update(self, dt):
-        if not self.game_view.game_over:
-            self.game_view.update()
-
-    def on_key_press(self, key, modifiers):
-        if not self.game_view.game_over:
-            self.game_view.key_press(key)
-
-    def on_key_release(self, key, modifiers):
-        if not self.game_view.game_over:
-            self.game_view.key_release(key)
-
-    def draw_game_over(self):
-        start_x = 0
-        start_y = SCREEN_HEIGHT / 2
-        arcade.draw_text("GAME OVER",
-                         start_x,
-                         start_y,
-                         arcade.color.BARBIE_PINK,
-                         40,
-                         width=SCREEN_WIDTH,
-                         align="center",
-                         bold=True)
-
-    def on_draw(self):
-        self.clear()
-        self.game_view.draw()
-        if self.game_view.game_over:
-            self.draw_game_over()
-
 
 def main():
     window = MainWindow(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
-    window.setup()
-    arcade.run()
+    window.run()
 
 
 if __name__ == "__main__":
