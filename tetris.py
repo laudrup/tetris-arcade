@@ -23,7 +23,9 @@ HEIGHT = 30
 SPEED = 10
 
 # Do the math to figure out our screen dimensions
-SCREEN_WIDTH = WIDTH * COLUMN_COUNT
+BOARD_WIDTH = WIDTH * COLUMN_COUNT
+STATUS_WIDTH = 120
+SCREEN_WIDTH = BOARD_WIDTH + STATUS_WIDTH
 SCREEN_HEIGHT = HEIGHT * ROW_COUNT
 SCREEN_TITLE = "Tetris"
 
@@ -198,9 +200,9 @@ class Board():
         self.__sprite_list.draw()
 
 
-class GameView(arcade.View):
-    def __init__(self):
-        super().__init__()
+class PlayerSection(arcade.Section):
+    def __init__(self, left, bottom, width, height, **kwargs):
+        super().__init__(left, bottom, width, height, **kwargs)
         self.board = Board()
         self.frame_count = 0
         self.game_over = False
@@ -226,7 +228,7 @@ class GameView(arcade.View):
                          start_y,
                          arcade.color.BARBIE_PINK,
                          40,
-                         width=SCREEN_WIDTH,
+                         width=BOARD_WIDTH,
                          align="center",
                          bold=True)
 
@@ -261,6 +263,7 @@ class GameView(arcade.View):
         if self.frame_count % SPEED == 0:
             self.drop()
         if self.board.update() and not self.stone:
+            self.points += self.board.points_earned
             self.new_stone()
 
     def move(self, delta_x):
@@ -293,7 +296,6 @@ class GameView(arcade.View):
             del self.keys_pressed[key]
 
     def on_draw(self):
-        self.clear()
         self.board.draw()
         if self.stone:
             self.stone.draw()
@@ -301,11 +303,40 @@ class GameView(arcade.View):
             self.draw_game_over()
 
 
+class StatusSection(arcade.Section):
+    def __init__(self, left, bottom, width, height, **kwargs):
+        super().__init__(left, bottom, width, height, **kwargs)
+
+    @property
+    def score(self):
+        return self.view.player_section.points
+
+    def on_draw(self):
+        arcade.draw_text(f"Score: {self.score}",
+                         self.left,
+                         self.height - 60,
+                         arcade.color.BLACK,
+                         12,
+                         width=self.width,
+                         align="center")
+
+
+class GameView(arcade.View):
+    def __init__(self):
+        super().__init__()
+
+        self.player_section = PlayerSection(0, 0, BOARD_WIDTH, SCREEN_HEIGHT)
+        self.status_section = StatusSection(BOARD_WIDTH, 0, STATUS_WIDTH, SCREEN_HEIGHT)
+        self.add_section(self.player_section)
+        self.add_section(self.status_section)
+
+    def on_draw(self):
+        arcade.start_render()
+
+
 class MainWindow(arcade.Window):
-    def __init__(self, width, height, title):
-        super().__init__(width, height, title, resizable=True)
-        width, height = self.get_size()
-        self.set_viewport(0, width, 0, height)
+    def __init__(self):
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True)
         arcade.set_background_color(arcade.color.WHITE)
         self.game_view = GameView()
         self.show_view(self.game_view)
@@ -323,7 +354,7 @@ class MainWindow(arcade.Window):
 
 
 def main():
-    window = MainWindow(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+    window = MainWindow()
     window.run()
 
 
