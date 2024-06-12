@@ -325,13 +325,19 @@ class GameView(arcade.View):
     def __init__(self):
         super().__init__()
 
-        self.player_section = PlayerSection(0, 0, BOARD_WIDTH, SCREEN_HEIGHT)
-        self.status_section = StatusSection(BOARD_WIDTH, 0, STATUS_WIDTH, SCREEN_HEIGHT)
+        self.player_section = PlayerSection(0, 0, BOARD_WIDTH, SCREEN_HEIGHT, prevent_dispatch_view={False})
+        self.status_section = StatusSection(BOARD_WIDTH, 0, STATUS_WIDTH, SCREEN_HEIGHT, prevent_dispatch_view={False})
         self.add_section(self.player_section)
         self.add_section(self.status_section)
 
     def on_draw(self):
         arcade.start_render()
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.F:
+            self.window.set_fullscreen(not self.window.fullscreen)
+        elif key == arcade.key.Q:
+            arcade.exit()
 
 
 class MainWindow(arcade.Window):
