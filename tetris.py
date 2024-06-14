@@ -180,7 +180,11 @@ class Board(arcade.Section):
             for column in range(len(self.__grid[0])):
                 v = self.__grid[row][column]
                 i = row * COLUMN_COUNT + column
-                self.__sprite_list[i].set_texture(v)
+                if v == 0:
+                    self.__sprite_list[i].visible = False
+                else:
+                    self.__sprite_list[i].visible = True
+                    self.__sprite_list[i].set_texture(v)
 
         for i, row in enumerate(self.__rows_to_remove):
             if all(x == 0 for x in self.__grid[row]):
