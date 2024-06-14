@@ -101,12 +101,32 @@ def join_matrixes(matrix_1, matrix_2, matrix_2_offset):
 
 
 class Tetromino():
-    def __init__(self, board, shape=None, x=0, y=0):
+    def __init__(self, board):
         self.board = board
-        self.grid = shape if shape else random.choice(tetris_shapes)
-        self.x = x
-        self.y = y
-        self.width = len(self.grid[0])
+        self.grid = random.choice(tetris_shapes)
+        self.x = int(COLUMN_COUNT / 2 - self.width / 2)
+        self.y = 0
+
+    @property
+    def width(self):
+        return len(self.grid[0])
+
+    def move(self, delta_x):
+        new_x = self.x + delta_x
+        if new_x < 0:
+            new_x = 0
+        if new_x > COLUMN_COUNT - self.width:
+            new_x = COLUMN_COUNT - self.width
+        if not self.board.check_collision(self.grid, new_x, self.y):
+            self.x = new_x
+
+    def rotate(self):
+        new_grid = rotate_counterclockwise(self.grid)
+        new_width = len(new_grid[0])
+        if self.x + new_width >= COLUMN_COUNT:
+            self.x = COLUMN_COUNT - new_width
+        if not self.board.check_collision(new_grid, self.x, self.y):
+            self.grid = new_grid
 
     def draw(self):
         for row in range(len(self.grid)):
@@ -163,11 +183,10 @@ class Board(arcade.Section):
         else:
             self.points_earned = 0
 
-    def check_collision(self, stone, x=None):
-        x = x if x is not None else stone.x
-        for cy, row in enumerate(stone.grid):
+    def check_collision(self, grid, x, y):
+        for cy, row in enumerate(grid):
             for cx, cell in enumerate(row):
-                if cell and self.__grid[cy + stone.y][cx + x]:
+                if cell and self.__grid[cy + y][cx + x]:
                     self.__hit.play()
                     return True
         return False
@@ -226,9 +245,7 @@ class PlayerSection(arcade.Section):
 
     def new_stone(self):
         self.stone = Tetromino(self.board)
-        self.stone.x = int(COLUMN_COUNT / 2 - self.stone.width / 2)
-
-        if self.board.check_collision(self.stone):
+        if self.board.check_collision(self.stone.grid, self.stone.x, self.stone.y):
             self.__game_over_sound.play()
             self.game_over = True
 
@@ -248,7 +265,7 @@ class PlayerSection(arcade.Section):
         if not self.stone:
             return
         self.stone.y += 1
-        if self.board.check_collision(self.stone):
+        if self.board.check_collision(self.stone.grid, self.stone.x, self.stone.y):
             self.board.add_stone(self.stone)
             self.stone = None
             self.board.remove_rows()
@@ -256,11 +273,7 @@ class PlayerSection(arcade.Section):
     def rotate_stone(self):
         if not self.stone:
             return
-        new_stone = Tetromino(self.board, rotate_counterclockwise(self.stone.grid), x=self.stone.x, y=self.stone.y)
-        if new_stone.x + new_stone.width >= COLUMN_COUNT:
-            new_stone.x = COLUMN_COUNT - new_stone.width
-        if not self.board.check_collision(new_stone):
-            self.stone = new_stone
+        self.stone.rotate()
 
     def update(self, dt):
         if self.game_over:
@@ -281,13 +294,7 @@ class PlayerSection(arcade.Section):
     def move(self, delta_x):
         if not self.stone:
             return
-        new_x = self.stone.x + delta_x
-        if new_x < 0:
-            new_x = 0
-        if new_x > COLUMN_COUNT - self.stone.width:
-            new_x = COLUMN_COUNT - self.stone.width
-        if not self.board.check_collision(self.stone, x=new_x):
-            self.stone.x = new_x
+        self.stone.move(delta_x)
 
     def on_key_press(self, key, modifiers):
         if self.game_over:
