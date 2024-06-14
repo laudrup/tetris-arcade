@@ -324,6 +324,7 @@ class StatusSection(arcade.Section):
 class GameView(arcade.View):
     def __init__(self):
         super().__init__()
+        self.background = arcade.load_texture(resource_path("bg.png"))
 
         self.player_section = PlayerSection(0, 0, BOARD_WIDTH, SCREEN_HEIGHT, prevent_dispatch_view={False})
         self.status_section = StatusSection(BOARD_WIDTH, 0, STATUS_WIDTH, SCREEN_HEIGHT, prevent_dispatch_view={False})
@@ -332,6 +333,9 @@ class GameView(arcade.View):
 
     def on_draw(self):
         arcade.start_render()
+        arcade.draw_lrwh_rectangle_textured(0, 0,
+                                            SCREEN_WIDTH, SCREEN_HEIGHT,
+                                            self.background)
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.F:
@@ -343,7 +347,6 @@ class GameView(arcade.View):
 class MainWindow(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True)
-        arcade.set_background_color(arcade.color.WHITE)
         self.game_view = GameView()
         self.show_view(self.game_view)
 
