@@ -16,17 +16,18 @@ ROW_COUNT = 24
 COLUMN_COUNT = 10
 
 # This sets the WIDTH and HEIGHT of each grid location
-WIDTH = 30
-HEIGHT = 30
+WIDTH = 40
+HEIGHT = 40
 
 # Amount of frames between dropping stone down one row
 SPEED = 10
 
 # Do the math to figure out our screen dimensions
 BOARD_WIDTH = WIDTH * COLUMN_COUNT
+BOARD_HEIGHT = HEIGHT * ROW_COUNT
 STATUS_WIDTH = 120
-SCREEN_WIDTH = BOARD_WIDTH + STATUS_WIDTH
-SCREEN_HEIGHT = HEIGHT * ROW_COUNT
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 SCREEN_TITLE = "Tetris"
 
 # Amount of frames between moving on key hold
@@ -100,7 +101,8 @@ def join_matrixes(matrix_1, matrix_2, matrix_2_offset):
 
 
 class Tetromino():
-    def __init__(self, shape=None, x=0, y=0):
+    def __init__(self, board, shape=None, x=0, y=0):
+        self.board = board
         self.grid = shape if shape else random.choice(tetris_shapes)
         self.x = x
         self.y = y
@@ -110,18 +112,20 @@ class Tetromino():
         for row in range(len(self.grid)):
             for column in range(self.width):
                 if self.grid[row][column]:
-                    x = WIDTH * (column + self.x) + WIDTH // 2
-                    y = SCREEN_HEIGHT - HEIGHT * (row + self.y) + HEIGHT // 2
+                    x = (WIDTH * (column + self.x) + WIDTH // 2)
+                    y = (self.board.height - HEIGHT * (row + self.y) + HEIGHT // 2)
                     texture = texture_list[self.grid[row][column]]
                     sprite = arcade.Sprite(texture=texture)
                     sprite.scale = float(WIDTH) / float(sprite.width)
-                    sprite.center_x = x
-                    sprite.center_y = y
-                    sprite.draw()
+                    sprite.center_x = x + self.board.left
+                    sprite.center_y = y + self.board.bottom
+                    if sprite.center_y < self.board.top:
+                        sprite.draw()
 
 
-class Board():
-    def __init__(self):
+class Board(arcade.Section):
+    def __init__(self, left, bottom, width, height, **kwargs):
+        super().__init__(left, bottom, width, height, **kwargs)
         self.points_earned = 0
         self.__grid = [[0 for _x in range(COLUMN_COUNT)] for _y in range(ROW_COUNT)]
         self.__grid += [[1 for _x in range(COLUMN_COUNT)]]
@@ -139,8 +143,8 @@ class Board():
                     sprite.append_texture(texture)
                 sprite.set_texture(0)
                 sprite.scale = float(WIDTH) / float(sprite.width)
-                sprite.center_x = WIDTH * column + WIDTH // 2
-                sprite.center_y = SCREEN_HEIGHT - HEIGHT * row + HEIGHT // 2
+                sprite.center_x = (WIDTH * column + WIDTH // 2) + self.left
+                sprite.center_y = (self.height - HEIGHT * row + HEIGHT // 2) + self.bottom
                 sprite_list.append(sprite)
         return sprite_list
 
@@ -197,13 +201,17 @@ class Board():
         return len(self.__rows_to_remove) == 0
 
     def draw(self):
+        for col in range(self.left, self.width + self.left + 1, WIDTH):
+            arcade.draw_line(col, self.top, col, self.bottom, (*arcade.color.BYZANTINE, 50), 2)
+        for row in range(self.bottom, self.height + self.bottom + 1, HEIGHT):
+            arcade.draw_line(self.left, row, self.left + self.width, row, (*arcade.color.BYZANTINE, 50), 2)
         self.__sprite_list.draw()
 
 
 class PlayerSection(arcade.Section):
     def __init__(self, left, bottom, width, height, **kwargs):
         super().__init__(left, bottom, width, height, **kwargs)
-        self.board = Board()
+        self.board = Board(self.left + 5, self.bottom + 5, BOARD_WIDTH, BOARD_HEIGHT)
         self.frame_count = 0
         self.game_over = False
         self.stone = None
@@ -213,7 +221,7 @@ class PlayerSection(arcade.Section):
         self.new_stone()
 
     def new_stone(self):
-        self.stone = Tetromino()
+        self.stone = Tetromino(self.board)
         self.stone.x = int(COLUMN_COUNT / 2 - self.stone.width / 2)
 
         if self.board.check_collision(self.stone):
@@ -221,7 +229,7 @@ class PlayerSection(arcade.Section):
             self.game_over = True
 
     def draw_game_over(self):
-        start_x = 0
+        start_x = self.left
         start_y = SCREEN_HEIGHT / 2
         arcade.draw_text("GAME OVER",
                          start_x,
@@ -244,7 +252,7 @@ class PlayerSection(arcade.Section):
     def rotate_stone(self):
         if not self.stone:
             return
-        new_stone = Tetromino(rotate_counterclockwise(self.stone.grid), x=self.stone.x, y=self.stone.y)
+        new_stone = Tetromino(self.board, rotate_counterclockwise(self.stone.grid), x=self.stone.x, y=self.stone.y)
         if new_stone.x + new_stone.width >= COLUMN_COUNT:
             new_stone.x = COLUMN_COUNT - new_stone.width
         if not self.board.check_collision(new_stone):
@@ -296,6 +304,7 @@ class PlayerSection(arcade.Section):
             del self.keys_pressed[key]
 
     def on_draw(self):
+        arcade.draw_lrtb_rectangle_outline(self.left, self.right, self.top, self.bottom, (*arcade.color.ANTIQUE_FUCHSIA, 100), 5)
         self.board.draw()
         if self.stone:
             self.stone.draw()
@@ -303,7 +312,7 @@ class PlayerSection(arcade.Section):
             self.draw_game_over()
 
 
-class StatusSection(arcade.Section):
+class ScoreSection(arcade.Section):
     def __init__(self, left, bottom, width, height, **kwargs):
         super().__init__(left, bottom, width, height, **kwargs)
 
@@ -312,13 +321,21 @@ class StatusSection(arcade.Section):
         return self.view.player_section.points
 
     def on_draw(self):
-        arcade.draw_text(f"Score: {self.score}",
+        arcade.draw_lrtb_rectangle_filled(self.left, self.right, self.bottom + 90, self.bottom, (*arcade.color.AFRICAN_VIOLET, 25))
+        arcade.draw_line(self.left, self.bottom + 50, self.right, self.bottom + 50, (*arcade.color.BOYSENBERRY, 150), 3)
+        arcade.draw_text("Score",
+                         self.left + 5,
+                         self.bottom + 60,
+                         (*arcade.color.BABY_BLUE, 200),
+                         20),
+
+        arcade.draw_text(self.score,
                          self.left,
-                         self.height - 60,
-                         arcade.color.BLACK,
-                         12,
-                         width=self.width,
-                         align="center")
+                         self.bottom + 15,
+                         (*arcade.color.BABY_BLUE, 200),
+                         20,
+                         width=self.width - 10,
+                         align="right")
 
 
 class GameView(arcade.View):
@@ -326,16 +343,16 @@ class GameView(arcade.View):
         super().__init__()
         self.background = arcade.load_texture(resource_path("bg.png"))
 
-        self.player_section = PlayerSection(0, 0, BOARD_WIDTH, SCREEN_HEIGHT, prevent_dispatch_view={False})
-        self.status_section = StatusSection(BOARD_WIDTH, 0, STATUS_WIDTH, SCREEN_HEIGHT, prevent_dispatch_view={False})
+        player_section_left = SCREEN_WIDTH // 2 - BOARD_WIDTH // 2 + 5
+        player_section_bottom = SCREEN_HEIGHT // 2 - BOARD_HEIGHT // 2 + 5
+        self.player_section = PlayerSection(player_section_left, player_section_bottom, BOARD_WIDTH + 10, BOARD_HEIGHT + 10, prevent_dispatch_view={False})
+        self.score_section = ScoreSection(self.player_section.right + 20, player_section_bottom, STATUS_WIDTH, 100, prevent_dispatch_view={False})
         self.add_section(self.player_section)
-        self.add_section(self.status_section)
+        self.add_section(self.score_section)
 
     def on_draw(self):
         arcade.start_render()
-        arcade.draw_lrwh_rectangle_textured(0, 0,
-                                            SCREEN_WIDTH, SCREEN_HEIGHT,
-                                            self.background)
+        arcade.draw_lrwh_rectangle_textured(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, self.background)
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.F:
