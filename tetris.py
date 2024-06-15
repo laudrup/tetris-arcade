@@ -12,7 +12,7 @@ import random
 import pathlib
 
 # Set how many rows and columns we will have
-ROW_COUNT = 24
+ROW_COUNT = 25
 COLUMN_COUNT = 10
 
 # This sets the WIDTH and HEIGHT of each grid location
@@ -147,8 +147,7 @@ class Board(arcade.Section):
     def __init__(self, left, bottom, width, height, **kwargs):
         super().__init__(left, bottom, width, height, **kwargs)
         self.points_earned = 0
-        self.__grid = [[0 for _x in range(COLUMN_COUNT)] for _y in range(ROW_COUNT)]
-        self.__grid += [[1 for _x in range(COLUMN_COUNT)]]
+        self.__grid = [[0 for _x in range(COLUMN_COUNT)] for _y in range(ROW_COUNT + 1)]
         self.__sprite_list = self.__setup_sprites()
         self.__rows_to_remove = []
         self.__explosion = arcade.Sound(':resources:sounds/explosion2.wav')
@@ -169,7 +168,7 @@ class Board(arcade.Section):
         return sprite_list
 
     def remove_rows(self):
-        for i, row in enumerate(self.__grid[:-1]):
+        for i, row in enumerate(self.__grid):
             if 0 not in row:
                 self.__rows_to_remove.append(i)
         if len(self.__rows_to_remove) == 1:
@@ -184,6 +183,9 @@ class Board(arcade.Section):
             self.points_earned = 0
 
     def check_collision(self, grid, x, y):
+        if y + len(grid) > len(self.__grid):
+            self.__hit.play()
+            return True
         for cy, row in enumerate(grid):
             for cx, cell in enumerate(row):
                 if cell and self.__grid[cy + y][cx + x]:
