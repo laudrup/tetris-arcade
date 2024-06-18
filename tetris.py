@@ -30,6 +30,8 @@ STATUS_HEIGHT = 200
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 SCREEN_TITLE = "Tetris"
+MENU_ENTRY_HEIGHT = 100
+MENU_ENTRY_WIDTH = 500
 
 # Amount of frames between moving on key hold
 KEY_REPEAT_SPEED = 7
@@ -69,6 +71,14 @@ tetris_shapes = [
      [7, 7]]
 ]
 
+logo_grid = [
+    [1, 1, 1, 1, 1, 0, 4, 4, 4, 0, 5, 5, 5, 5, 5, 0, 2, 2, 2, 0, 0, 3, 3, 3, 0, 0, 5, 5, 5],
+    [0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 0, 0, 2, 0, 0, 3, 0, 0, 5, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0, 4, 4, 0, 0, 0, 0, 5, 0, 0, 0, 2, 2, 2, 0, 0, 0, 3, 0, 0, 0, 5, 5, 0],
+    [0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0, 5],
+    [0, 0, 1, 0, 0, 0, 4, 4, 4, 0, 0, 0, 5, 0, 0, 0, 2, 0, 0, 2, 0, 3, 3, 3, 0, 5, 5, 5, 0]
+]
+
 
 def resource_path(fname):
     """Helper to load resources (images, sounds) from this files directory"""
@@ -87,6 +97,22 @@ def create_textures():
 texture_list = create_textures()
 
 
+def setup_sprites(grid, left, height, bottom):
+    sprite_list = arcade.SpriteList()
+    for cy in range(len(grid)):
+        for cx, cell in enumerate(grid[cy]):
+            sprite = arcade.Sprite()
+            for texture in texture_list:
+                sprite.append_texture(texture)
+                sprite.scale = float(WIDTH) / float(texture.width)
+                sprite.center_x = (WIDTH * cx + WIDTH // 2) + left
+                sprite.center_y = (height - HEIGHT * cy + HEIGHT // 2) + bottom
+            if cell:
+                sprite.set_texture(cell)
+            sprite_list.append(sprite)
+    return sprite_list
+
+
 def rotate_counterclockwise(shape):
     return [[shape[y][x] for y in range(len(shape))]
             for x in range(len(shape[0]) - 1, -1, -1)]
@@ -99,6 +125,63 @@ def join_matrixes(matrix_1, matrix_2, matrix_2_offset):
         for cx, val in enumerate(row):
             matrix_1[cy + offset_y - 1][cx + offset_x] += val
     return matrix_1
+
+
+class MenuItem(arcade.Section):
+    def __init__(self, left, bottom, width, height, title, handler):
+        super().__init__(left, bottom, width, height, prevent_dispatch_view={False})
+        self.title = title
+        self.handler = handler
+        self.background = arcade.load_texture(resource_path("menu_item_bg.png"))
+        self.selected = False
+
+    def on_draw(self):
+        alpha = 255 if self.selected else 120
+        arcade.draw_texture_rectangle(self.left + self.width / 2, self.bottom + self.height / 2, self.width, self.height, self.background, alpha=alpha)
+        arcade.draw_text(self.title,
+                         self.left,
+                         self.bottom + 40,
+                         arcade.color.WHITE,
+                         20,
+                         width=self.width,
+                         align="center")
+
+
+class MenuView(arcade.View):
+    def __init__(self, entries):
+        super().__init__()
+        self.background = arcade.load_texture(resource_path("bg.png"))
+        logo_height = len(logo_grid) * HEIGHT
+        logo_width = len(logo_grid[0]) * WIDTH
+        logo_left = (SCREEN_WIDTH - logo_width) / 2
+        logo_bottom = SCREEN_HEIGHT - logo_height
+        self.__sprite_list = setup_sprites(logo_grid, logo_left, logo_height, logo_bottom - 100)
+
+        self.entries = []
+        y_pos = logo_bottom - 250
+        for title, func in entries:
+            menu_item = MenuItem((SCREEN_WIDTH - MENU_ENTRY_WIDTH) / 2, y_pos, MENU_ENTRY_WIDTH, MENU_ENTRY_HEIGHT, title, func)
+            self.add_section(menu_item)
+            self.entries.append(menu_item)
+            y_pos -= MENU_ENTRY_HEIGHT
+
+        self.entries[0].selected = True
+
+    def on_draw(self):
+        self.clear()
+        arcade.draw_lrwh_rectangle_textured(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, self.background)
+        self.__sprite_list.draw()
+
+    def on_key_press(self, key, _modifiers):
+        idx, entry = [(i, e) for i, e in enumerate(self.entries) if e.selected][0]
+        if key == arcade.key.UP and idx != 0:
+            entry.selected = False
+            self.entries[idx - 1].selected = True
+        elif key == arcade.key.DOWN and idx != len(self.entries) - 1:
+            entry.selected = False
+            self.entries[idx + 1].selected = True
+        elif key == arcade.key.ENTER:
+            entry.handler()
 
 
 class Tetromino():
@@ -149,24 +232,10 @@ class Board(arcade.Section):
         super().__init__(left, bottom, width, height, **kwargs)
         self.points_earned = 0
         self.__grid = [[0 for _x in range(COLUMN_COUNT)] for _y in range(ROW_COUNT + 1)]
-        self.__sprite_list = self.__setup_sprites()
+        self.__sprite_list = setup_sprites(self.__grid, self.left, self.height, self.bottom)
         self.__rows_to_remove = []
         self.__explosion = arcade.Sound(':resources:sounds/explosion2.wav')
         self.__hit = arcade.Sound(':resources:sounds/hit5.wav')
-
-    def __setup_sprites(self):
-        sprite_list = arcade.SpriteList()
-        for row in range(len(self.__grid)):
-            for column in range(len(self.__grid[0])):
-                sprite = arcade.Sprite()
-                for texture in texture_list:
-                    sprite.append_texture(texture)
-                sprite.set_texture(0)
-                sprite.scale = float(WIDTH) / float(sprite.width)
-                sprite.center_x = (WIDTH * column + WIDTH // 2) + self.left
-                sprite.center_y = (self.height - HEIGHT * row + HEIGHT // 2) + self.bottom
-                sprite_list.append(sprite)
-        return sprite_list
 
     def remove_rows(self):
         for i, row in enumerate(self.__grid):
@@ -369,17 +438,36 @@ class GameView(arcade.View):
         arcade.draw_lrwh_rectangle_textured(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, self.background)
 
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.F:
-            self.window.set_fullscreen(not self.window.fullscreen)
-        elif key == arcade.key.Q:
-            arcade.exit()
+        if key == arcade.key.ESCAPE:
+            self.window.show_menu()
 
 
 class MainWindow(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True)
-        self.game_view = GameView()
+        self.game_view = None
+        self.show_menu()
+
+    def show_menu(self):
+        menu_entries = [] if not self.game_view or self.game_view.player_section.game_over else [
+            ("Continue game", self.continue_game)
+        ]
+        menu_entries += [
+            ("New game", self.new_game),
+            ("Toggle fullscreen", self.toggle_fullscreen),
+            ("Quit", arcade.exit)
+        ]
+        self.show_view(MenuView(menu_entries))
+
+    def toggle_fullscreen(self):
+        self.set_fullscreen(not self.fullscreen)
+
+    def continue_game(self):
         self.show_view(self.game_view)
+
+    def new_game(self):
+        self.game_view = GameView()
+        self.continue_game()
 
     def on_resize(self, width, height):
         super().on_resize(width, height)
