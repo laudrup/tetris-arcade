@@ -25,7 +25,8 @@ SPEED = 10
 # Do the math to figure out our screen dimensions
 BOARD_WIDTH = WIDTH * COLUMN_COUNT
 BOARD_HEIGHT = HEIGHT * ROW_COUNT
-STATUS_WIDTH = 120
+STATUS_WIDTH = 200
+STATUS_HEIGHT = 200
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 SCREEN_TITLE = "Tetris"
@@ -328,26 +329,26 @@ class PlayerSection(arcade.Section):
 class ScoreSection(arcade.Section):
     def __init__(self, left, bottom, width, height, **kwargs):
         super().__init__(left, bottom, width, height, **kwargs)
+        self.background = arcade.load_texture(resource_path("info_section_bg.png"))
 
     @property
     def score(self):
         return self.view.player_section.points
 
     def on_draw(self):
-        arcade.draw_lrtb_rectangle_filled(self.left, self.right, self.bottom + 90, self.bottom, (*arcade.color.AFRICAN_VIOLET, 25))
-        arcade.draw_line(self.left, self.bottom + 50, self.right, self.bottom + 50, (*arcade.color.BOYSENBERRY, 150), 3)
+        arcade.draw_lrwh_rectangle_textured(self.left, self.bottom, self.width, self.height, self.background, alpha=50)
         arcade.draw_text("Score",
-                         self.left + 5,
-                         self.bottom + 60,
-                         (*arcade.color.BABY_BLUE, 200),
+                         self.left + 20,
+                         self.bottom + self.height - 50,
+                         arcade.color.WHITE,
                          20),
 
         arcade.draw_text(self.score,
                          self.left,
-                         self.bottom + 15,
-                         (*arcade.color.BABY_BLUE, 200),
-                         20,
-                         width=self.width - 10,
+                         self.bottom + 55,
+                         arcade.color.WHITE,
+                         40,
+                         width=self.width - 30,
                          align="right")
 
 
@@ -359,7 +360,7 @@ class GameView(arcade.View):
         player_section_left = SCREEN_WIDTH // 2 - BOARD_WIDTH // 2 + 5
         player_section_bottom = SCREEN_HEIGHT // 2 - BOARD_HEIGHT // 2 + 5
         self.player_section = PlayerSection(player_section_left, player_section_bottom, BOARD_WIDTH + 10, BOARD_HEIGHT + 10, prevent_dispatch_view={False})
-        self.score_section = ScoreSection(self.player_section.right + 20, player_section_bottom, STATUS_WIDTH, 100, prevent_dispatch_view={False})
+        self.score_section = ScoreSection(self.player_section.right + 20, player_section_bottom, STATUS_WIDTH, STATUS_HEIGHT, prevent_dispatch_view={False})
         self.add_section(self.player_section)
         self.add_section(self.score_section)
 
