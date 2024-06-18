@@ -445,6 +445,8 @@ class GameView(arcade.View):
 class MainWindow(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True)
+        self.theme_music = arcade.Sound(resource_path("korobeiniki.wav"), streaming=True)
+        self.music_player = self.theme_music.play(loop=True)
         self.game_view = None
         self.show_menu()
 
@@ -455,12 +457,19 @@ class MainWindow(arcade.Window):
         menu_entries += [
             ("New game", self.new_game),
             ("Toggle fullscreen", self.toggle_fullscreen),
+            ("Toggle music", self.toggle_music),
             ("Quit", arcade.exit)
         ]
         self.show_view(MenuView(menu_entries))
 
     def toggle_fullscreen(self):
         self.set_fullscreen(not self.fullscreen)
+
+    def toggle_music(self):
+        if self.theme_music.is_playing(self.music_player):
+            self.music_player.pause()
+        else:
+            self.music_player.play()
 
     def continue_game(self):
         self.show_view(self.game_view)
