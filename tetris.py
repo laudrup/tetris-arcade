@@ -19,9 +19,6 @@ COLUMN_COUNT = 10
 WIDTH = 40
 HEIGHT = 40
 
-# Amount of frames between dropping stone down one row
-SPEED = 10
-
 # Do the math to figure out our screen dimensions
 BOARD_WIDTH = WIDTH * COLUMN_COUNT
 BOARD_HEIGHT = HEIGHT * ROW_COUNT
@@ -230,7 +227,7 @@ class Tetromino():
 class Board(arcade.Section):
     def __init__(self, left, bottom, width, height, **kwargs):
         super().__init__(left, bottom, width, height, **kwargs)
-        self.points_earned = 0
+        self.rows_removed = 0
         self.__grid = [[0 for _x in range(COLUMN_COUNT)] for _y in range(ROW_COUNT + 1)]
         self.__sprite_list = setup_sprites(self.__grid, self.left, self.height, self.bottom)
         self.__rows_to_remove = []
@@ -241,16 +238,7 @@ class Board(arcade.Section):
         for i, row in enumerate(self.__grid):
             if 0 not in row:
                 self.__rows_to_remove.append(i)
-        if len(self.__rows_to_remove) == 1:
-            self.points_earned = 20
-        elif len(self.__rows_to_remove) == 2:
-            self.points_earned = 50
-        elif len(self.__rows_to_remove) == 3:
-            self.points_earned = 120
-        elif len(self.__rows_to_remove) == 4:
-            self.points_earned = 300
-        else:
-            self.points_earned = 0
+        self.rows_removed = len(self.__rows_to_remove)
 
     def check_collision(self, grid, x, y):
         if y + len(grid) > len(self.__grid):
@@ -312,6 +300,9 @@ class PlayerSection(arcade.Section):
         self.stone = None
         self.keys_pressed = {}
         self.points = 0
+        self.level = 1
+        self.rows_remaining = 10
+        self.speed = 30
         self.__game_over_sound = arcade.Sound(':resources:sounds/gameover1.wav')
         self.new_stone()
 
@@ -356,11 +347,24 @@ class PlayerSection(arcade.Section):
         if (arcade.key.RIGHT, self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
             self.move(1)
         if (arcade.key.DOWN, self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
+            self.points += 1
             self.drop()
-        if self.frame_count % SPEED == 0:
+        if self.frame_count % self.speed == 0:
             self.drop()
         if self.board.update() and not self.stone:
-            self.points += self.board.points_earned
+            if self.board.rows_removed == 1:
+                self.points += 100
+            elif self.board.rows_removed == 2:
+                self.points += 150
+            elif self.board.rows_removed == 3:
+                self.points += 400
+            elif self.board.rows_removed == 4:
+                self.points += 1000
+            self.rows_remaining -= self.board.rows_removed
+            if self.rows_remaining <= 0:
+                self.level += 1
+                self.rows_remaining += 10
+                self.speed -= 1
             self.new_stone()
 
     def move(self, delta_x):
@@ -395,24 +399,22 @@ class PlayerSection(arcade.Section):
             self.draw_game_over()
 
 
-class ScoreSection(arcade.Section):
-    def __init__(self, left, bottom, width, height, **kwargs):
-        super().__init__(left, bottom, width, height, **kwargs)
+class InfoSection(arcade.Section):
+    def __init__(self, title, contents, left, bottom):
+        super().__init__(left, bottom, STATUS_WIDTH, STATUS_HEIGHT, prevent_dispatch_view={False})
+        self.title = title
         self.background = arcade.load_texture(resource_path("info_section_bg.png"))
-
-    @property
-    def score(self):
-        return self.view.player_section.points
+        self.contents = contents
 
     def on_draw(self):
-        arcade.draw_lrwh_rectangle_textured(self.left, self.bottom, self.width, self.height, self.background, alpha=50)
-        arcade.draw_text("Score",
-                         self.left + 20,
+        arcade.draw_lrwh_rectangle_textured(self.left, self.bottom, self.width, self.height, self.background, alpha=100)
+        arcade.draw_text(self.title,
+                         self.left + 30,
                          self.bottom + self.height - 50,
                          arcade.color.WHITE,
                          20),
 
-        arcade.draw_text(self.score,
+        arcade.draw_text(self.contents(),
                          self.left,
                          self.bottom + 55,
                          arcade.color.WHITE,
@@ -429,9 +431,23 @@ class GameView(arcade.View):
         player_section_left = SCREEN_WIDTH // 2 - BOARD_WIDTH // 2 + 5
         player_section_bottom = SCREEN_HEIGHT // 2 - BOARD_HEIGHT // 2 + 5
         self.player_section = PlayerSection(player_section_left, player_section_bottom, BOARD_WIDTH + 10, BOARD_HEIGHT + 10, prevent_dispatch_view={False})
-        self.score_section = ScoreSection(self.player_section.right + 20, player_section_bottom, STATUS_WIDTH, STATUS_HEIGHT, prevent_dispatch_view={False})
+        self.score_section = InfoSection("Score", self.score, self.player_section.right + 20, player_section_bottom + 150)
+        self.level_section = InfoSection("Level", self.level, self.player_section.right + 20, player_section_bottom + STATUS_HEIGHT + 150)
+        self.rows_remaining_section = InfoSection("Remaining", self.rows_remaining, self.player_section.right + 20, player_section_bottom + 150 + STATUS_HEIGHT * 2)
         self.add_section(self.player_section)
         self.add_section(self.score_section)
+        self.add_section(self.level_section)
+        self.add_section(self.rows_remaining_section)
+
+    def score(self):
+        return self.player_section.points
+
+    def level(self):
+        return self.player_section.level
+
+    def rows_remaining(self):
+        return self.player_section.rows_remaining
+
 
     def on_draw(self):
         arcade.start_render()
