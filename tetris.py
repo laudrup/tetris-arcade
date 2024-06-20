@@ -304,6 +304,7 @@ class PlayerSection(arcade.Section):
         self.rows_remaining = 10
         self.speed = 30
         self.__game_over_sound = arcade.Sound(':resources:sounds/gameover1.wav')
+        self.__tetris = arcade.Sound(resource_path("tetris.wav"))
         self.new_stone()
 
     def new_stone(self):
@@ -360,6 +361,7 @@ class PlayerSection(arcade.Section):
                 self.points += 400
             elif self.board.rows_removed == 4:
                 self.points += 1000
+                self.__tetris.play()
             self.rows_remaining -= self.board.rows_removed
             if self.rows_remaining <= 0:
                 self.level += 1
