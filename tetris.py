@@ -22,7 +22,7 @@ HEIGHT = 40
 # Do the math to figure out our screen dimensions
 BOARD_WIDTH = WIDTH * COLUMN_COUNT
 BOARD_HEIGHT = HEIGHT * ROW_COUNT
-STATUS_WIDTH = 200
+STATUS_WIDTH = 250
 STATUS_HEIGHT = 200
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
@@ -189,6 +189,10 @@ class Tetromino():
         self.y = 0
 
     @property
+    def height(self):
+        return len(self.grid)
+
+    @property
     def width(self):
         return len(self.grid[0])
 
@@ -305,10 +309,14 @@ class PlayerSection(arcade.Section):
         self.speed = 30
         self.__game_over_sound = arcade.Sound(':resources:sounds/gameover1.wav')
         self.__tetris = arcade.Sound(resource_path("tetris.wav"))
+        self.next_stone = Tetromino(self.board)
         self.new_stone()
 
     def new_stone(self):
-        self.stone = Tetromino(self.board)
+        self.stone = self.next_stone
+        self.stone.y = 0
+        self.stone.x = int(COLUMN_COUNT / 2 - self.stone.width / 2)
+        self.next_stone = Tetromino(self.board)
         if self.board.check_collision(self.stone.grid, self.stone.x, self.stone.y):
             self.__game_over_sound.play()
             self.game_over = True
@@ -425,6 +433,25 @@ class InfoSection(arcade.Section):
                          align="right")
 
 
+class NextStoneSection(arcade.Section):
+    def __init__(self, stone, left, bottom):
+        super().__init__(left, bottom, STATUS_WIDTH, STATUS_HEIGHT, prevent_dispatch_view={False})
+        self.background = arcade.load_texture(resource_path("info_section_bg.png"))
+        self.stone = stone
+
+    def on_draw(self):
+        arcade.draw_lrwh_rectangle_textured(self.left, self.bottom, self.width, self.height, self.background, alpha=100)
+        arcade.draw_text("Next",
+                         self.left + 30,
+                         self.bottom + self.height - 50,
+                         arcade.color.WHITE,
+                         20),
+        stone = self.stone()
+        stone.x = 12.4 if stone.width == 3 else (11.8 if stone.width == 4 else 12.7)
+        stone.y = 4.3 if stone.height == 2 else 4.7
+        stone.draw()
+
+
 class GameView(arcade.View):
     def __init__(self):
         super().__init__()
@@ -436,10 +463,12 @@ class GameView(arcade.View):
         self.score_section = InfoSection("Score", self.score, self.player_section.right + 20, player_section_bottom + 150)
         self.level_section = InfoSection("Level", self.level, self.player_section.right + 20, player_section_bottom + STATUS_HEIGHT + 150)
         self.rows_remaining_section = InfoSection("Remaining", self.rows_remaining, self.player_section.right + 20, player_section_bottom + 150 + STATUS_HEIGHT * 2)
+        self.next_section = NextStoneSection(self.next_stone, self.player_section.right + 20, player_section_bottom + 150 + STATUS_HEIGHT * 3)
         self.add_section(self.player_section)
         self.add_section(self.score_section)
         self.add_section(self.level_section)
         self.add_section(self.rows_remaining_section)
+        self.add_section(self.next_section)
 
     def score(self):
         return self.player_section.points
@@ -450,6 +479,8 @@ class GameView(arcade.View):
     def rows_remaining(self):
         return self.player_section.rows_remaining
 
+    def next_stone(self):
+        return self.player_section.next_stone
 
     def on_draw(self):
         arcade.start_render()
