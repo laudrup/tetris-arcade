@@ -56,6 +56,7 @@ colored_brick_files = [
     'yellow.png',
     'purple.png',
     'cyan.png',
+    'grey.png',
     'explosion.png'
 ]
 
@@ -261,6 +262,8 @@ class BoardSection(arcade.Section):
         self.__grid = [[0 for _x in range(COLUMN_COUNT)] for _y in range(ROW_COUNT + 1)]
         self.__sprite_list = setup_sprites(self.__grid, self.left, self.height, self.bottom)
         self.__rows_to_remove = []
+        self.__garbage_to_add = 0
+        self.__step = 0
         self.__explosion = arcade.Sound(':resources:sounds/explosion2.wav')
         self.__hit = arcade.Sound(':resources:sounds/hit5.wav')
 
@@ -287,10 +290,15 @@ class BoardSection(arcade.Section):
     def add_stone(self, stone):
         self.__grid = join_matrixes(self.__grid, stone.grid, (stone.x, stone.y))
 
+    def add_garbage(self, count):
+        self.__garbage_to_add = count
+
     def removing_rows(self):
         return len(self.__rows_to_remove) == 0
 
     def on_update(self, dt):
+        self.__step = 0 if self.__step == 10 else self.__step + 1
+
         for row in range(len(self.__grid)):
             for column in range(len(self.__grid[0])):
                 v = self.__grid[row][column]
@@ -308,14 +316,22 @@ class BoardSection(arcade.Section):
                 del self.__rows_to_remove[i]
                 return
             for column in range(len(self.__grid[row])):
-                if self.__grid[row][column] == 8:
+                if self.__grid[row][column] == 9:
                     self.__grid[row][column] = 0
                 elif self.__grid[row][column] != 0:
                     self.__explosion.play()
-                    self.__grid[row][column] = 8
+                    self.__grid[row][column] = 9
                 else:
                     continue
                 return
+
+        if self.__garbage_to_add > 0 and self.__step == 0:
+            self.__grid.pop(0)
+            garbage_column = [8 for _x in range(COLUMN_COUNT)]
+            garbage_column[random.randint(0, COLUMN_COUNT - 1)] = 0
+            self.__grid.append(garbage_column)
+            self.__garbage_to_add -= 1
+            self.__hit.play()
 
     def on_draw(self):
         for col in range(self.left, self.width + self.left + 1, WIDTH):
@@ -331,7 +347,6 @@ class PlayerSection(arcade.Section):
         self.keymap = keymap
 
         self.board_section = BoardSection(self.left + 5, self.bottom + 5, BOARD_WIDTH, BOARD_HEIGHT)
-        self.score_section = InfoSection("Score", self.score, self.right + 20, self.bottom + height - STATUS_HEIGHT * 4)
         self.level_section = InfoSection("Level", self.level, self.right + 20, self.bottom + height - STATUS_HEIGHT * 3)
         self.rows_remaining_section = InfoSection("Remaining", self.rows_remaining, self.right + 20, self.bottom + height - STATUS_HEIGHT * 2)
         self.next_stone_section = NextStoneSection(self.next_stone, self.right + 20, self.bottom + height - STATUS_HEIGHT)
@@ -341,17 +356,14 @@ class PlayerSection(arcade.Section):
         self.stone = None
         self.keys_pressed = {}
 
-        self.__score = 0
         self.__level = 1
         self.__rows_remaining = 10
         self.speed = 30
         self.__game_over_sound = arcade.Sound(':resources:sounds/gameover1.wav')
-        self.__tetris = arcade.Sound(resource_path("tetris.wav"))
         self.__next_stone = Tetromino(self.board_section)
         self.new_stone()
 
-    def score(self):
-        return self.__score
+        self.__incoming_garbage = 0
 
     def level(self):
         return self.__level
@@ -361,6 +373,11 @@ class PlayerSection(arcade.Section):
 
     def next_stone(self):
         return self.__next_stone
+
+    def incoming_garbage(self, count=None):
+        if count:
+            self.__incoming_garbage += count
+        return self.__incoming_garbage
 
     def new_stone(self):
         self.stone = self.__next_stone
@@ -377,6 +394,9 @@ class PlayerSection(arcade.Section):
         self.stone.y += 1
         if self.board_section.check_collision(self.stone.grid, self.stone.x, self.stone.y):
             self.board_section.add_stone(self.stone)
+            if self.__incoming_garbage > 0:
+                self.board_section.add_garbage(self.__incoming_garbage)
+                self.__incoming_garbage = 0
             self.stone = None
             self.board_section.remove_rows()
 
@@ -387,7 +407,6 @@ class PlayerSection(arcade.Section):
 
     def on_section_added(self):
         self.view.add_section(self.board_section)
-        self.view.add_section(self.score_section)
         self.view.add_section(self.level_section)
         self.view.add_section(self.rows_remaining_section)
         self.view.add_section(self.next_stone_section)
@@ -399,20 +418,12 @@ class PlayerSection(arcade.Section):
         if (self.keymap["RIGHT"], self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
             self.move(1)
         if (self.keymap["DOWN"], self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
-            self.__score += 1
             self.drop()
         if self.frame_count % self.speed == 0:
             self.drop()
         if not self.board_section.rows_to_remove() and not self.stone:
-            if self.board_section.rows_removed == 1:
-                self.__score += 100
-            elif self.board_section.rows_removed == 2:
-                self.__score += 150
-            elif self.board_section.rows_removed == 3:
-                self.__score += 400
-            elif self.board_section.rows_removed == 4:
-                self.__score += 1000
-                self.__tetris.play()
+            if self.board_section.rows_removed > 0:
+                self.view.on_rows_removed(self.board_section.rows_removed, self)
             self.__rows_remaining -= self.board_section.rows_removed
             if self.__rows_remaining <= 0:
                 self.__level += 1
@@ -517,11 +528,17 @@ class GameOverSection(arcade.Section):
 class SinglePlayerView(TetrisView):
     def __init__(self):
         super().__init__()
+        self.__tetris = arcade.Sound(resource_path("tetris.wav"))
+        self.__score = 0
+
         player_section_left = SCREEN_WIDTH // 2 - BOARD_WIDTH // 2 + 5
         player_section_bottom = SCREEN_HEIGHT // 2 - BOARD_HEIGHT // 2 + 5
 
         self.player_section = PlayerSection(player_section_left, player_section_bottom, BOARD_WIDTH + 10, BOARD_HEIGHT + 10, PLAYER_2_KEYMAP)
         self.add_section(self.player_section)
+
+        self.score_section = InfoSection("Score", self.score, self.player_section.right + 20, player_section_bottom + BOARD_HEIGHT + 10 - STATUS_HEIGHT * 4)
+        self.add_section(self.score_section)
 
         self.game_over_section = GameOverSection()
         self.add_section(self.game_over_section)
@@ -529,6 +546,20 @@ class SinglePlayerView(TetrisView):
     @property
     def game_over(self):
         return self.player_section.game_over
+
+    def score(self):
+        return self.__score
+
+    def on_rows_removed(self, rows_removed, player):
+        if rows_removed == 1:
+            self.__score += 100
+        elif rows_removed == 2:
+            self.__score += 150
+        elif rows_removed == 3:
+            self.__score += 400
+        elif rows_removed == 4:
+            self.__score += 1000
+            self.__tetris.play()
 
     def on_update(self, dt):
         self.game_over_section.enabled = self.game_over
@@ -541,6 +572,7 @@ class SinglePlayerView(TetrisView):
 class TwoPlayerView(TetrisView):
     def __init__(self):
         super().__init__()
+        self.__garbage = arcade.Sound(resource_path("garbage.wav"))
 
         player_one_section_left = SCREEN_WIDTH // 10 + 30
         player_two_section_left = player_one_section_left + BOARD_WIDTH * 2
@@ -552,6 +584,12 @@ class TwoPlayerView(TetrisView):
         self.player_two_section = PlayerSection(player_two_section_left, player_section_bottom, BOARD_WIDTH + 10, BOARD_HEIGHT + 10, PLAYER_2_KEYMAP)
         self.add_section(self.player_two_section)
 
+        self.player_one_incoming_section = InfoSection("Incoming", self.player_one_section.incoming_garbage, self.player_one_section.right + 20, self.player_one_section.bottom + BOARD_HEIGHT + 10 - STATUS_HEIGHT * 4)
+        self.add_section(self.player_one_incoming_section)
+
+        self.player_two_incoming_section = InfoSection("Incoming", self.player_two_section.incoming_garbage, self.player_two_section.right + 20, self.player_two_section.bottom + BOARD_HEIGHT + 10 - STATUS_HEIGHT * 4)
+        self.add_section(self.player_two_incoming_section)
+
         self.game_over_section = GameOverSection()
         self.add_section(self.game_over_section)
 
@@ -559,9 +597,18 @@ class TwoPlayerView(TetrisView):
     def game_over(self):
         return self.player_one_section.game_over or self.player_two_section.game_over
 
+    def on_rows_removed(self, rows_removed, player):
+        if rows_removed < 2:
+            return
+        self.__garbage.play()
+        if player == self.player_one_section:
+            self.player_two_section.incoming_garbage(rows_removed - 1)
+        elif player == self.player_two_section:
+            self.player_one_section.incoming_garbage(rows_removed - 1)
+
     def on_update(self, dt):
         if self.game_over:
-            winning_player = "Player one" if self.player_one_section.score() > self.player_two_section.score() else "Player two"
+            winning_player = "Player one" if self.player_two_section.game_over else "Player two"
             self.game_over_section.text = f"{winning_player} won!"
             self.game_over_section.enabled = True
 
