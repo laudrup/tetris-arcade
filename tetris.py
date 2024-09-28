@@ -45,7 +45,7 @@ PLAYER_2_KEYMAP = dict(
 )
 
 # Amount of frames between moving on key hold
-KEY_REPEAT_SPEED = 7
+KEY_REPEAT_SPEED = 20
 
 colored_brick_files = [
     'transparent.png',
@@ -387,6 +387,7 @@ class PlayerSection(arcade.Section):
         if self.board_section.check_collision(self.stone.grid, self.stone.x, self.stone.y):
             self.__game_over_sound.play()
             self.game_over = True
+        self.keys_pressed.clear()
 
     def drop(self):
         if not self.stone:
@@ -413,12 +414,15 @@ class PlayerSection(arcade.Section):
 
     def on_update(self, dt):
         self.frame_count += 1
-        if (self.keymap["LEFT"], self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
-            self.move(-1)
-        if (self.keymap["RIGHT"], self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
-            self.move(1)
-        if (self.keymap["DOWN"], self.frame_count % KEY_REPEAT_SPEED) in self.keys_pressed.items():
-            self.drop()
+        for k in self.keys_pressed:
+            self.keys_pressed[k] += 1
+            if self.keys_pressed[k] > KEY_REPEAT_SPEED and self.keys_pressed[k] % 4 == 0:
+                if k == self.keymap["LEFT"]:
+                    self.move(-1)
+                if k == self.keymap["RIGHT"]:
+                    self.move(1)
+                if k == self.keymap["DOWN"]:
+                    self.drop()
         if self.frame_count % self.speed == 0:
             self.drop()
         if not self.board_section.rows_to_remove() and not self.stone:
@@ -446,7 +450,7 @@ class PlayerSection(arcade.Section):
             self.move(1)
         elif key == self.keymap["DOWN"]:
             self.drop()
-        self.keys_pressed[key] = self.frame_count % KEY_REPEAT_SPEED
+        self.keys_pressed[key] = 0
 
     def on_key_release(self, key, modifiers):
         if key in self.keys_pressed:
