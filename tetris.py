@@ -44,8 +44,8 @@ PLAYER_2_KEYMAP = dict(
     RIGHT=arcade.key.RIGHT
 )
 
-# Amount of frames between moving on key hold
-KEY_REPEAT_SPEED = 20
+# Seconds before moving on key hold
+KEY_REPEAT_SPEED = 0.45
 
 colored_brick_files = [
     'transparent.png',
@@ -415,14 +415,15 @@ class PlayerSection(arcade.Section):
     def on_update(self, dt):
         self.frame_count += 1
         for k in self.keys_pressed:
-            self.keys_pressed[k] += 1
-            if self.keys_pressed[k] > KEY_REPEAT_SPEED and self.keys_pressed[k] % 4 == 0:
+            self.keys_pressed[k] += dt
+            if self.keys_pressed[k] > KEY_REPEAT_SPEED:
                 if k == self.keymap["LEFT"]:
                     self.move(-1)
                 if k == self.keymap["RIGHT"]:
                     self.move(1)
                 if k == self.keymap["DOWN"]:
                     self.drop()
+                self.keys_pressed[k] = 0.4
         if self.frame_count % self.speed == 0:
             self.drop()
         if not self.board_section.rows_to_remove() and not self.stone:
@@ -450,7 +451,7 @@ class PlayerSection(arcade.Section):
             self.move(1)
         elif key == self.keymap["DOWN"]:
             self.drop()
-        self.keys_pressed[key] = 0
+        self.keys_pressed[key] = 0.0
 
     def on_key_release(self, key, modifiers):
         if key in self.keys_pressed:
