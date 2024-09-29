@@ -1,10 +1,10 @@
-"""
+'''
 Tetris-Arcade
 
 Tetris clone based on the tetris example from the python arcade
 distribution.
 
-"""
+'''
 
 import arcade
 import random
@@ -25,7 +25,7 @@ STATUS_WIDTH = 250
 STATUS_HEIGHT = 200
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
-SCREEN_TITLE = "Tetris"
+SCREEN_TITLE = 'Tetris'
 MENU_ENTRY_HEIGHT = 100
 MENU_ENTRY_WIDTH = 500
 
@@ -92,13 +92,13 @@ logo_grid = [
 
 
 def resource_path(fname):
-    """Helper to load resources (images, sounds) from this files directory"""
+    '''Helper to load resources (images, sounds) from this files directory'''
     this_dir = pathlib.Path(__file__).parent.resolve()
     return this_dir / 'data' / fname
 
 
 def create_textures():
-    """ Create a list of images for sprites based on the global colors. """
+    ''' Create a list of images for sprites based on the global colors. '''
     new_textures = []
     for brick_file in colored_brick_files:
         new_textures.append(arcade.load_texture(resource_path(brick_file)))
@@ -130,7 +130,7 @@ def rotate_counterclockwise(shape):
 
 
 def join_matrixes(matrix_1, matrix_2, matrix_2_offset):
-    """ Copy matrix 2 onto matrix 1 based on the passed in x, y offset coordinate """
+    ''' Copy matrix 2 onto matrix 1 based on the passed in x, y offset coordinate '''
     offset_x, offset_y = matrix_2_offset
     for cy, row in enumerate(matrix_2):
         for cx, val in enumerate(row):
@@ -141,7 +141,7 @@ def join_matrixes(matrix_1, matrix_2, matrix_2_offset):
 class TetrisView(arcade.View):
     def __init__(self):
         super().__init__()
-        self.background = arcade.load_texture(resource_path("bg.png"))
+        self.background = arcade.load_texture(resource_path('bg.png'))
 
     def on_draw(self):
         arcade.draw_lrwh_rectangle_textured(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, self.background)
@@ -157,7 +157,7 @@ class MenuItem(arcade.Section):
         super().__init__(left, bottom, width, height, prevent_dispatch_view={False})
         self.title = title
         self.handler = handler
-        self.background = arcade.load_texture(resource_path("menu_item_bg.png"))
+        self.background = arcade.load_texture(resource_path('menu_item_bg.png'))
         self.selected = False
 
     def on_draw(self):
@@ -169,7 +169,7 @@ class MenuItem(arcade.Section):
                          arcade.color.WHITE,
                          20,
                          width=self.width,
-                         align="center")
+                         align='center')
 
 
 class MenuView(TetrisView):
@@ -346,8 +346,8 @@ class PlayerSection(arcade.Section):
         self.keymap = keymap
 
         self.board_section = BoardSection(self.left + 5, self.bottom + 5, BOARD_WIDTH, BOARD_HEIGHT)
-        self.level_section = InfoSection("Level", self.level, self.right + 20, self.bottom + height - STATUS_HEIGHT * 3)
-        self.rows_remaining_section = InfoSection("Remaining", self.rows_remaining, self.right + 20, self.bottom + height - STATUS_HEIGHT * 2)
+        self.level_section = InfoSection('Level', self.level, self.right + 20, self.bottom + height - STATUS_HEIGHT * 3)
+        self.rows_remaining_section = InfoSection('Remaining', self.rows_remaining, self.right + 20, self.bottom + height - STATUS_HEIGHT * 2)
         self.next_stone_section = NextStoneSection(self.next_stone, self.right + 20, self.bottom + height - STATUS_HEIGHT)
 
         self.frame_count = 0
@@ -416,11 +416,11 @@ class PlayerSection(arcade.Section):
         for k in self.keys_pressed:
             self.keys_pressed[k] += dt
             if self.keys_pressed[k] > KEY_REPEAT_SPEED:
-                if k == self.keymap["LEFT"]:
+                if k == self.keymap['LEFT']:
                     self.move(-1)
-                if k == self.keymap["RIGHT"]:
+                if k == self.keymap['RIGHT']:
                     self.move(1)
-                if k == self.keymap["DOWN"]:
+                if k == self.keymap['DOWN']:
                     self.drop()
                 self.keys_pressed[k] = 0.4
         if self.frame_count % self.speed == 0:
@@ -441,14 +441,14 @@ class PlayerSection(arcade.Section):
         self.stone.move(delta_x)
 
     def on_key_press(self, key, modifiers):
-        if key == self.keymap["UP"]:
+        if key == self.keymap['UP']:
             self.rotate_stone()
             return
-        elif key == self.keymap["LEFT"]:
+        elif key == self.keymap['LEFT']:
             self.move(-1)
-        elif key == self.keymap["RIGHT"]:
+        elif key == self.keymap['RIGHT']:
             self.move(1)
-        elif key == self.keymap["DOWN"]:
+        elif key == self.keymap['DOWN']:
             self.drop()
         self.keys_pressed[key] = 0.0
 
@@ -466,7 +466,7 @@ class InfoSection(arcade.Section):
     def __init__(self, title, contents, left, bottom):
         super().__init__(left, bottom, STATUS_WIDTH, STATUS_HEIGHT, prevent_dispatch={False}, prevent_dispatch_view={False})
         self.title = title
-        self.background = arcade.load_texture(resource_path("info_section_bg.png"))
+        self.background = arcade.load_texture(resource_path('info_section_bg.png'))
         self.contents = contents
 
     def on_draw(self):
@@ -483,18 +483,18 @@ class InfoSection(arcade.Section):
                          arcade.color.WHITE,
                          40,
                          width=self.width - 30,
-                         align="right")
+                         align='right')
 
 
 class NextStoneSection(arcade.Section):
     def __init__(self, stone, left, bottom, **kwargs):
         super().__init__(left, bottom, STATUS_WIDTH, STATUS_HEIGHT, prevent_dispatch={False}, prevent_dispatch_view={False}, **kwargs)
-        self.background = arcade.load_texture(resource_path("info_section_bg.png"))
+        self.background = arcade.load_texture(resource_path('info_section_bg.png'))
         self.stone = stone
 
     def on_draw(self):
         arcade.draw_lrwh_rectangle_textured(self.left, self.bottom, self.width, self.height, self.background, alpha=100)
-        arcade.draw_text("Next",
+        arcade.draw_text('Next',
                          self.left + 30,
                          self.bottom + self.height - 50,
                          arcade.color.WHITE,
@@ -508,7 +508,7 @@ class NextStoneSection(arcade.Section):
 class GameOverSection(arcade.Section):
     def __init__(self):
         super().__init__(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, modal=True, enabled=False, prevent_dispatch_view={False})
-        self.text = "Game Over!"
+        self.text = 'Game Over!'
 
     def on_draw(self):
         start_x = 0
@@ -519,7 +519,7 @@ class GameOverSection(arcade.Section):
                            arcade.color.WHITE,
                            80,
                            width=SCREEN_WIDTH,
-                           align="center",
+                           align='center',
                            bold=True)
         arcade.draw_lrtb_rectangle_filled(self.left, self.right, self.top, self.bottom, (128, 128, 128, 128))
         text.draw()
@@ -532,7 +532,7 @@ class GameOverSection(arcade.Section):
 class SinglePlayerView(TetrisView):
     def __init__(self):
         super().__init__()
-        self.__tetris = arcade.Sound(resource_path("tetris.wav"))
+        self.__tetris = arcade.Sound(resource_path('tetris.wav'))
         self.__score = 0
 
         player_section_left = SCREEN_WIDTH // 2 - BOARD_WIDTH // 2 + 5
@@ -541,7 +541,7 @@ class SinglePlayerView(TetrisView):
         self.player_section = PlayerSection(player_section_left, player_section_bottom, BOARD_WIDTH + 10, BOARD_HEIGHT + 10, PLAYER_2_KEYMAP)
         self.add_section(self.player_section)
 
-        self.score_section = InfoSection("Score", self.score, self.player_section.right + 20, player_section_bottom + BOARD_HEIGHT + 10 - STATUS_HEIGHT * 4)
+        self.score_section = InfoSection('Score', self.score, self.player_section.right + 20, player_section_bottom + BOARD_HEIGHT + 10 - STATUS_HEIGHT * 4)
         self.add_section(self.score_section)
 
         self.game_over_section = GameOverSection()
@@ -576,7 +576,7 @@ class SinglePlayerView(TetrisView):
 class TwoPlayerView(TetrisView):
     def __init__(self):
         super().__init__()
-        self.__garbage = arcade.Sound(resource_path("garbage.wav"))
+        self.__garbage = arcade.Sound(resource_path('garbage.wav'))
 
         player_one_section_left = SCREEN_WIDTH // 10 + 30
         player_two_section_left = player_one_section_left + BOARD_WIDTH * 2
@@ -588,10 +588,10 @@ class TwoPlayerView(TetrisView):
         self.player_two_section = PlayerSection(player_two_section_left, player_section_bottom, BOARD_WIDTH + 10, BOARD_HEIGHT + 10, PLAYER_2_KEYMAP)
         self.add_section(self.player_two_section)
 
-        self.player_one_incoming_section = InfoSection("Incoming", self.player_one_section.incoming_garbage, self.player_one_section.right + 20, self.player_one_section.bottom + BOARD_HEIGHT + 10 - STATUS_HEIGHT * 4)
+        self.player_one_incoming_section = InfoSection('Incoming', self.player_one_section.incoming_garbage, self.player_one_section.right + 20, self.player_one_section.bottom + BOARD_HEIGHT + 10 - STATUS_HEIGHT * 4)
         self.add_section(self.player_one_incoming_section)
 
-        self.player_two_incoming_section = InfoSection("Incoming", self.player_two_section.incoming_garbage, self.player_two_section.right + 20, self.player_two_section.bottom + BOARD_HEIGHT + 10 - STATUS_HEIGHT * 4)
+        self.player_two_incoming_section = InfoSection('Incoming', self.player_two_section.incoming_garbage, self.player_two_section.right + 20, self.player_two_section.bottom + BOARD_HEIGHT + 10 - STATUS_HEIGHT * 4)
         self.add_section(self.player_two_incoming_section)
 
         self.game_over_section = GameOverSection()
@@ -612,8 +612,8 @@ class TwoPlayerView(TetrisView):
 
     def on_update(self, dt):
         if self.game_over:
-            winning_player = "Player one" if self.player_two_section.game_over else "Player two"
-            self.game_over_section.text = f"{winning_player} won!"
+            winning_player = 'Player one' if self.player_two_section.game_over else 'Player two'
+            self.game_over_section.text = f'{winning_player} won!'
             self.game_over_section.enabled = True
 
     def on_key_press(self, key, modifiers):
@@ -624,21 +624,21 @@ class TwoPlayerView(TetrisView):
 class MainWindow(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True)
-        self.theme_music = arcade.Sound(resource_path("korobeiniki.wav"), streaming=True)
+        self.theme_music = arcade.Sound(resource_path('korobeiniki.wav'), streaming=True)
         self.music_player = self.theme_music.play(loop=True)
         self.game_view = None
         self.show_menu()
 
     def show_menu(self):
         menu_entries = [] if not self.game_view or self.game_view.game_over else [
-            ("Continue game", self.continue_game)
+            ('Continue game', self.continue_game)
         ]
         menu_entries += [
-            ("Singler player game", self.new_single_player_game),
-            ("Two player game", self.new_two_player_game),
-            ("Toggle fullscreen", self.toggle_fullscreen),
-            ("Toggle music", self.toggle_music),
-            ("Quit", arcade.exit)
+            ('Singler player game', self.new_single_player_game),
+            ('Two player game', self.new_two_player_game),
+            ('Toggle fullscreen', self.toggle_fullscreen),
+            ('Toggle music', self.toggle_music),
+            ('Quit', arcade.exit)
         ]
         self.show_view(MenuView(menu_entries))
 
@@ -679,5 +679,5 @@ def main():
     window.run()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
