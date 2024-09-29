@@ -151,6 +151,10 @@ class TetrisView(arcade.View):
         if hasattr(section, 'on_section_added'):
             section.on_section_added()
 
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.ESCAPE:
+            self.window.show_menu()
+
 
 class MenuItem(arcade.Section):
     def __init__(self, left, bottom, width, height, title, handler):
@@ -195,7 +199,7 @@ class MenuView(TetrisView):
         super().on_draw()
         self.__sprite_list.draw()
 
-    def on_key_press(self, key, _modifiers):
+    def on_key_press(self, key, modifiers):
         idx, entry = [(i, e) for i, e in enumerate(self.entries) if e.selected][0]
         if key == arcade.key.UP and idx != 0:
             entry.selected = False
@@ -205,6 +209,7 @@ class MenuView(TetrisView):
             self.entries[idx + 1].selected = True
         elif key == arcade.key.ENTER:
             entry.handler()
+        self.window.on_key_press(key, modifiers)
 
 
 class Tetromino():
@@ -568,10 +573,6 @@ class SinglePlayerView(TetrisView):
     def on_update(self, dt):
         self.game_over_section.enabled = self.game_over
 
-    def on_key_press(self, key, modifiers):
-        if key == arcade.key.ESCAPE:
-            self.window.show_menu()
-
 
 class TwoPlayerView(TetrisView):
     def __init__(self):
@@ -615,10 +616,6 @@ class TwoPlayerView(TetrisView):
             winning_player = 'Player one' if self.player_two_section.game_over else 'Player two'
             self.game_over_section.text = f'{winning_player} won!'
             self.game_over_section.enabled = True
-
-    def on_key_press(self, key, modifiers):
-        if key == arcade.key.ESCAPE:
-            self.window.show_menu()
 
 
 class MainWindow(arcade.Window):
