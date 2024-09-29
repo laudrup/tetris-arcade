@@ -1,0 +1,25 @@
+name: Windows executable
+
+on: [push]
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      - name: Create standalone executable
+        run: pyinstaller tetris_arcade/tetris.py --onefile --add-data tetris_arcade/data:data -n tetris-arcade -w
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: tetris-arcade
+          path: dist/tetris-arcade.exe
