@@ -6,9 +6,11 @@ distribution.
 
 '''
 
-import arcade
-import random
 import pathlib
+import random
+from datetime import datetime
+
+import arcade
 
 # Set how many rows and columns we will have
 ROW_COUNT = 25
@@ -669,6 +671,13 @@ class MainWindow(arcade.Window):
             self.set_viewport(-padding, new_width - padding, 0, SCREEN_HEIGHT)
         else:
             self.set_viewport(0, SCREEN_WIDTH, 0, height / width_ratio)
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.F11:
+            image = arcade.get_image()
+            fname = f'screenshot-{datetime.now().replace(microsecond=0).isoformat()}'
+            image.save(fname, 'PNG')
+            print(f'Saved screenshot as {fname}')
 
 
 def main():
