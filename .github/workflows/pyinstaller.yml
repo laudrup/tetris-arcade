@@ -18,8 +18,8 @@ jobs:
           pip install pyinstaller
       - name: Create standalone executable
         run: pyinstaller tetris_arcade/tetris.py --onefile --add-data tetris_arcade/data:data -n tetris-arcade -w
-      - name: Upload executable
-        uses: actions/upload-artifact@v4
+      - name: Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: tetris-arcade
-          path: dist/tetris-arcade.exe
+          files:
+            dist/tetris-arcade.exe
