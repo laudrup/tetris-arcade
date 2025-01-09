@@ -5,6 +5,7 @@ on: [push]
 jobs:
   package:
     runs-on: windows-latest
+    permissions: write-all
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
@@ -18,8 +19,9 @@ jobs:
           pip install pyinstaller
       - name: Create standalone executable
         run: pyinstaller tetris_arcade/tetris.py --onefile --add-data tetris_arcade/data:data -n tetris-arcade -w
-      - name: Upload executable
-        uses: actions/upload-artifact@v4
+      - name: Create release
+        uses: "marvinpinto/action-automatic-releases@latest"
         with:
-          name: tetris-arcade
-          path: dist/tetris-arcade.exe
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: dist/tetris-arcade.exe
